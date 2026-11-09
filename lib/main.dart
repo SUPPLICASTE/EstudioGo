@@ -61,7 +61,7 @@ class Planner extends StatefulWidget {
 }
 class _PlannerState extends State<Planner> {
   int tab = 0;
-  bool loading = true;
+  bool loading = false; // La interfaz se muestra inmediatamente; los datos se cargan en segundo plano.
   String criterion = 'Media aritmética';
   double criterionMin = 0;
   double criterionMax = 10;
@@ -403,7 +403,6 @@ class _PlannerState extends State<Planner> {
     ]);
   }
   @override Widget build(BuildContext context) {
-    if (loading) return const Scaffold(body:Center(child:CircularProgressIndicator()));
     final wide=MediaQuery.sizeOf(context).width>=760;
     final views=[_dashboard(),_list(classes,'classes',Icons.menu_book),_list(teachers,'teachers',Icons.person),_list(exams,'exams',Icons.event),_list(grades,'grades',Icons.grade),_calendar(),_statistics()];
     const nav=[
