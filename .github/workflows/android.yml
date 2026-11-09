@@ -75,6 +75,8 @@ jobs:
           from pathlib import Path
           p = Path("android/app/build.gradle.kts")
           s = p.read_text()
+          # file_picker y flutter_plugin_android_lifecycle requieren compileSdk 36.
+          s = s.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 36")
           if "isCoreLibraryDesugaringEnabled" not in s:
               s = s.replace("compileOptions {", "compileOptions {\n        isCoreLibraryDesugaringEnabled = true", 1)
           if "desugar_jdk_libs" not in s:
