@@ -75,11 +75,16 @@ jobs:
           from pathlib import Path
           p = Path("android/app/build.gradle.kts")
           s = p.read_text()
-          # file_picker y flutter_plugin_android_lifecycle requieren compileSdk 36.
+          # Forzar API 36: Flutter template usa flutter.compileSdkVersion (API 34).
+          s = s.replace("flutter.compileSdkVersion", "36")
           import re
-          s, count = re.subn(r"(?m)^\s*compileSdk(?:Version)?\s*(?:=\s*)?.*$", "    compileSdk = 36", s)
-          if count == 0:
-              raise RuntimeError("No se encontró compileSdk en Gradle")
+          s, count = re.subn(r"(?m)^[ \t]*compileSdk(?:Version)?[ \t]*(?:=[ \t]*)?[^\n]*$", "    compileSdk = 36", s)
+          if "compileSdk = 36" not in s:
+              raise RuntimeError("No se pudo establecer compileSdk 36 en Gradle")
+          print("Configuración Android aplicada:")
+          for line in s.splitlines():
+              if "compileSdk" in line:
+                  print(line)
           if "isCoreLibraryDesugaringEnabled" not in s:
               s = s.replace("compileOptions {", "compileOptions {\n        isCoreLibraryDesugaringEnabled = true", 1)
           if "desugar_jdk_libs" not in s:
