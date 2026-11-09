@@ -175,15 +175,35 @@ class _PlannerState extends State<Planner> {
     }));
   }
   DateTime selectedDay = DateTime.now();
-  Widget _calendar() => Column(children:[
-    CalendarDatePicker(firstDate:DateTime(2020),lastDate:DateTime(2035),initialDate:selectedDay,onDateChanged:(d)=>setState(()=>selectedDay=d)),
-    const Divider(),
-    Expanded(child:Builder(builder:(context){
-      final dayExams=exams.where((e){final d=DateTime.parse(e['date']);return d.year==selectedDay.year&&d.month==selectedDay.month&&d.day==selectedDay.day;}).toList();
-      if(dayExams.isEmpty) return const Center(child:Text('No hay exámenes para este día.'));
-      return ListView(children:dayExams.map((e)=>_tile(e['name'],e['subject']+' · '+DateFormat('dd/MM/yyyy').format(DateTime.parse(e['date'])),Icons.event)).toList());
-    }))
-  ]);
+  DateTime calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  Widget _calendar() {
+    final firstWeekday = DateTime(calendarMonth.year, calendarMonth.month, 1).weekday;
+    final days = DateUtils.getDaysInMonth(calendarMonth.year, calendarMonth.month);
+    final cells = <Widget>[];
+    for (int i=1; i<firstWeekday; i++) { cells.add(const SizedBox.shrink()); }
+    for (int day=1; day<=days; day++) {
+      final date=DateTime(calendarMonth.year,calendarMonth.month,day);
+      final hasExam=exams.any((e){final d=DateTime.parse(e['date']);return d.year==date.year&&d.month==date.month&&d.day==date.day;});
+      final selected=date.year==selectedDay.year&&date.month==selectedDay.month&&date.day==selectedDay.day;
+      cells.add(InkWell(borderRadius:BorderRadius.circular(30),onTap:()=>setState(()=>selectedDay=date),child:Container(
+        margin:const EdgeInsets.all(3),decoration:BoxDecoration(color:selected?blue.withOpacity(.16):null,border:selected?Border.all(color:blue):null,shape:BoxShape.circle),
+        child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Text('$day',style:TextStyle(fontWeight:selected?FontWeight.bold:FontWeight.normal)),if(hasExam) Container(width:5,height:5,decoration:const BoxDecoration(color:blue,shape:BoxShape.circle))]))));
+    }
+    final dayExams=exams.where((e){final d=DateTime.parse(e['date']);return d.year==selectedDay.year&&d.month==selectedDay.month&&d.day==selectedDay.day;}).toList();
+    return Column(children:[
+      Padding(padding:const EdgeInsets.fromLTRB(16,8,16,0),child:Row(children:[
+        IconButton(onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month-1)),icon:const Icon(Icons.chevron_left)),
+        Expanded(child:Center(child:Text(DateFormat('MMMM yyyy','es').format(calendarMonth),style:const TextStyle(fontSize:18,fontWeight:FontWeight.bold)))),
+        IconButton(onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month+1)),icon:const Icon(Icons.chevron_right)),
+        TextButton(onPressed:()=>setState((){selectedDay=DateTime.now();calendarMonth=DateTime(selectedDay.year,selectedDay.month);}),child:const Text('Hoy'))
+      ])),
+      const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:Row(children:['L','M','X','J','V','S','D'].map((d)=>Expanded(child:Center(child:Text(d,style:TextStyle(fontWeight:FontWeight.bold,color:Colors.grey))))).toList())),
+      Padding(padding:const EdgeInsets.all(8),child:GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:7,childAspectRatio:1.15,children:cells)),
+      const Divider(),
+      Padding(padding:const EdgeInsets.symmetric(horizontal:16,vertical:8),child:Align(alignment:Alignment.centerLeft,child:Text('Exámenes · ${DateFormat('dd/MM/yyyy').format(selectedDay)}',style:const TextStyle(fontWeight:FontWeight.bold)))),
+      Expanded(child:dayExams.isEmpty?const Center(child:Text('No hay exámenes para este día.')):ListView(children:dayExams.map((e)=>_tile(e['name'],e['subject'],Icons.event)).toList()))
+    ]);
+  }
 
   Widget _statistics() {
     final subjects=classes.map((c)=>c['name'].toString()).toList();
