@@ -77,7 +77,7 @@ jobs:
           s = p.read_text()
           # file_picker y flutter_plugin_android_lifecycle requieren compileSdk 36.
           import re
-          s, count = re.subn(r"(?m)^\\s*compileSdk(?:Version)?\\s*(?:=\\s*)?.*$", "    compileSdk = 36", s)
+          s, count = re.subn(r"(?m)^\s*compileSdk(?:Version)?\s*(?:=\s*)?.*$", "    compileSdk = 36", s)
           if count == 0:
               raise RuntimeError("No se encontró compileSdk en Gradle")
           if "isCoreLibraryDesugaringEnabled" not in s:
