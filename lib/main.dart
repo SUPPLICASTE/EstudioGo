@@ -163,12 +163,12 @@ class _PlannerState extends State<Planner> {
           if (isTeacher) TextField(controller: extra, decoration: const InputDecoration(labelText: 'Correo o contacto')),
           if (kind == 'classes') ...[
             DropdownButtonFormField<String>(
-              value: classDay,
+              initialValue: classDay,
               decoration: const InputDecoration(labelText: 'Día de la semana'),
               items: ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((d) => DropdownMenuItem(value:d, child:Text(d))).toList(),
               onChanged: (v) => refresh(() => classDay = v)),
             DropdownButtonFormField<String>(
-              value: classTeacher,
+              initialValue: classTeacher,
               decoration: const InputDecoration(labelText: 'Profesor'),
               items: teachers.map((t) => DropdownMenuItem(value:t['name'].toString(), child:Text(t['name'].toString()))).toList(),
               onChanged: (v) => refresh(() => classTeacher = v)),
@@ -187,7 +187,7 @@ class _PlannerState extends State<Planner> {
             items: classes.map((c) => DropdownMenuItem(value: c['name'] as String, child: Text(c['name'] as String))).toList(),
             onChanged: (v) => refresh(() => subject = v)),
           if (isGrade) ...[
-            TextField(controller: val, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Nota ($criterionMin–$criterionMax)')),
+            TextField(controller: val, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Nota ($criterionMin–$criterionMax)')),
             TextField(controller: extra, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Peso (%)')),
           ],
           if (isExam) OutlinedButton(onPressed: () async {
@@ -235,7 +235,7 @@ class _PlannerState extends State<Planner> {
         title: const Text('Criterio de evaluación'),
         content: StatefulBuilder(builder: (ctx, refresh) => Column(mainAxisSize:MainAxisSize.min, children:[
           DropdownButtonFormField<String>(
-            value:selectedCriterion,
+            initialValue:selectedCriterion,
             decoration:const InputDecoration(labelText:'Cálculo de la media'),
             items:['Media aritmética','Media ponderada'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),
             onChanged:(v)=>refresh(()=>selectedCriterion=v ?? selectedCriterion),
