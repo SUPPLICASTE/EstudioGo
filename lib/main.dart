@@ -4,8 +4,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 const blue = Color(0xFF2563EB);
+final notifications = FlutterLocalNotificationsPlugin();
+Future<void> initNotifications() async {
+  tz.initializeTimeZones();
+  try { final zone = await FlutterTimezone.getLocalTimezone(); tz.setLocalLocation(tz.getLocation(zone)); } catch (_) { tz.setLocalLocation(tz.getLocation('Europe/Madrid')); }
+  await notifications.initialize(const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')));
+  await notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+}
 void main() => runApp(const EstudioGo());
 
 class EstudioGo extends StatefulWidget {
@@ -46,7 +57,17 @@ class _PlannerState extends State<Planner> {
     }
     read('classes', classes); read('teachers', teachers); read('exams', exams); read('grades', grades);
     criterion = p.getString('criterion') ?? criterion;
+    try { await initNotifications(); await _scheduleExamReminders(); } catch (_) {}
     if (mounted) setState(() => loading = false);
+  }
+  Future<void> _scheduleExamReminders() async {
+    await notifications.cancelAll();
+    for (int i=0; i<exams.length; i++) {
+      final exam=exams[i]; final examDate=DateTime.parse(exam['date']).toLocal();
+      final reminder=DateTime(examDate.year,examDate.month,examDate.day).subtract(const Duration(days:1)).add(const Duration(hours:9));
+      if (!reminder.isAfter(DateTime.now())) continue;
+      await notifications.zonedSchedule(i+1, 'Examen mañana: ${exam['name']}', 'Asignatura: ${exam['subject']}', tz.TZDateTime.from(reminder,tz.local), const NotificationDetails(android:AndroidNotificationDetails('exam_reminders','Recordatorios de exámenes',channelDescription:'Avisos el día anterior a cada examen',importance:Importance.high,priority:Priority.high)), androidScheduleMode:AndroidScheduleMode.inexactAllowWhileIdle);
+    }
   }
   Future<void> _save() async {
     final p = await SharedPreferences.getInstance();
@@ -55,6 +76,7 @@ class _PlannerState extends State<Planner> {
     await p.setString('exams', jsonEncode(exams));
     await p.setString('grades', jsonEncode(grades));
     await p.setString('criterion', criterion);
+    try { await _scheduleExamReminders(); } catch (_) {}
   }
   double? _average([String? subject]) {
     final items = grades.where((g) => subject == null || g['subject'] == subject).toList();
