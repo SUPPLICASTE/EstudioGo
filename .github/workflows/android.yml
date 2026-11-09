@@ -21,7 +21,7 @@ jobs:
         with:
           channel: stable
       - name: Generate Android project
-        run: flutter create --platforms=android --project-name=estudiogo .
+        run: flutter create --platforms=android,web --project-name=estudiogo .
       - name: Add camera permission for QR scanner
         run: |
           python3 - <<'PY'
@@ -37,8 +37,15 @@ jobs:
         run: flutter pub get
       - name: Build APK
         run: flutter build apk --release
+      - name: Build web version
+        run: flutter build web --release
       - uses: actions/upload-artifact@v4
         with:
           name: EstudioGo-APK
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EstudioGo-Web
+          path: build/web/
           if-no-files-found: error
