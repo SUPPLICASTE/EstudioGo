@@ -476,7 +476,7 @@ class _PlannerState extends State<Planner> {
             NavigationRailDestination(icon:Icon(Icons.calendar_month),label:Text('Calendario')),
             NavigationRailDestination(icon:Icon(Icons.query_stats),label:Text('Estadísticas'))]),
         const VerticalDivider(width:1),Expanded(child:views[tab])]):views[tab],
-      floatingActionButton:tab==0?null:FloatingActionButton(backgroundColor:blue,foregroundColor:Colors.white,
+      floatingActionButton:(tab==0||tab==4)?null:FloatingActionButton(backgroundColor:blue,foregroundColor:Colors.white,
         onPressed:tab==3?addCalendarEntry:()=>_add(tab==1?'teachers':'grades'),child:const Icon(Icons.add)),
       bottomNavigationBar:wide?null:NavigationBar(selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:nav),
     );
