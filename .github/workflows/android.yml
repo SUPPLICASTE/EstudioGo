@@ -90,20 +90,32 @@ jobs:
           if "desugar_jdk_libs" not in s:
               s += '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
           p.write_text(s)
-          # Aplicar compileSdk 36 también a los módulos Android de plugins Flutter.
+          # Fijar AGP 8: AGP 9 aún presenta incompatibilidades con Flutter estable.
+          settings = Path("android/settings.gradle.kts")
+          settings_text = settings.read_text()
+          import re
+          settings_text, changed = re.subn(r'(id\\(["\\]com\\.android\\.application["\\]\\)\\s+version\\s+)["\\][^"\\]+["\\]', r'\\g<1>"8.9.1"', settings_text, count=1)
+          if changed == 0:
+              raise RuntimeError("No se pudo fijar Android Gradle Plugin 8.9.1")
+          settings.write_text(settings_text)
+          wrapper = Path("android/gradle/wrapper/gradle-wrapper.properties")
+          wrapper_text = wrapper.read_text()
+          wrapper_text = re.sub(r'gradle-[0-9.]+-(all|bin)\\.zip', r'gradle-8.11.1-\\1.zip', wrapper_text)
+          wrapper.write_text(wrapper_text)
+          # Establecer compileSdk 36 en todos los módulos Android library de plugins Flutter.
           root = Path("android/build.gradle.kts")
           gradle = root.read_text()
           force_sdk = """
           subprojects {
               plugins.withId("com.android.library") {
-                  extensions.findByName("android")?.let { androidExtension ->
-                      androidExtension.javaClass.getMethod("setCompileSdk", Int::class.javaPrimitiveType).invoke(androidExtension, 36)
+                  extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
+                      compileSdk = 36
                   }
               }
           }
           """
-          if "setCompileSdkVersion" not in gradle:
-              root.write_text(gradle + "\n" + force_sdk)
+          if "LibraryExtension" not in gradle:
+              root.write_text(gradle + "\\n" + force_sdk)
           PY
       - name: Descargar dependencias
         run: flutter pub get
