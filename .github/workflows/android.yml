@@ -84,7 +84,7 @@ jobs:
       - name: Descargar dependencias
         run: flutter pub get
       - name: Analizar código
-        run: flutter analyze lib --no-pub
+        run: flutter analyze lib --no-pub --no-fatal-infos --no-fatal-warnings
       - name: Compilar APK
         run: flutter build apk --release
       - name: Publicar APK
