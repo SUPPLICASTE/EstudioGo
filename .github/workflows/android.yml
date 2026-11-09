@@ -22,6 +22,8 @@ jobs:
           channel: stable
       - name: Generate Android project
         run: flutter create --platforms=android --project-name=estudiogo .
+      - name: Add camera permission for QR scanner
+        run: sed -i '/<application/i\\    <uses-permission android:name="android.permission.CAMERA" />' android/app/src/main/AndroidManifest.xml
       - name: Install dependencies
         run: flutter pub get
       - name: Build APK
