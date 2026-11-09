@@ -395,11 +395,11 @@ class _PlannerState extends State<Planner> {
         ...dayClasses.map((c){
           final i=classes.indexOf(c);
           final detail=[c['time'],c['teacher']].where((v)=>v!=null&&v.toString().isNotEmpty).join(' · ');
-          return _tile(c['name'],'Clase · $detail',Icons.menu_book,onTap:()=>_add('classes',i),trailing:IconButton(tooltip:'Editar clase',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add('classes',i)));
+          return _tile(c['name'],'Clase · $detail',Icons.menu_book,onTap:()=>_add('classes',i),trailing:Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Editar clase',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add('classes',i)),IconButton(tooltip:'Eliminar clase',icon:const Icon(Icons.delete_outline),onPressed:()=>_delete(classes,i))]));
         }),
         ...dayExams.map((e){
           final i=exams.indexOf(e);
-          return _tile(e['name'],'Examen · ${e['subject']}',Icons.event,onTap:()=>_add('exams',i),trailing:IconButton(tooltip:'Editar examen',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add('exams',i)));
+          return _tile(e['name'],'Examen · ${e['subject']}',Icons.event,onTap:()=>_add('exams',i),trailing:Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Editar examen',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add('exams',i)),IconButton(tooltip:'Eliminar examen',icon:const Icon(Icons.delete_outline),onPressed:()=>_delete(exams,i))]));
         }),
       ]))
     ]);
@@ -414,6 +414,40 @@ class _PlannerState extends State<Planner> {
       ...subjects.map((subject){final a=_average(subject); final count=grades.where((g)=>g['subject']==subject).length; final v=(a??0).clamp(0,10).toDouble(); return Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Expanded(child:Text(subject,style:const TextStyle(fontWeight:FontWeight.bold))),Text(a==null?'Sin notas':'${a.toStringAsFixed(2)}/10')]),const SizedBox(height:8),LinearProgressIndicator(value:v/10,minHeight:8),const SizedBox(height:6),Text('$count ${count==1?'nota':'notas'} registradas')])));}),
       const SizedBox(height:12),_tile('Media global',_average()==null?'Sin notas':'${_average()!.toStringAsFixed(2)} / 10',Icons.auto_graph),
     ]);
+  }
+
+  Widget _homeCalendar() {
+    final firstWeekday = DateTime(calendarMonth.year, calendarMonth.month, 1).weekday;
+    final days = DateUtils.getDaysInMonth(calendarMonth.year, calendarMonth.month);
+    final cells = <Widget>[];
+    for (int i=1; i<firstWeekday; i++) cells.add(const SizedBox.shrink());
+    for (int day=1; day<=days; day++) {
+      final date=DateTime(calendarMonth.year,calendarMonth.month,day);
+      final hasExam=exams.any((e){final d=DateTime.parse(e['date']);return d.year==date.year&&d.month==date.month&&d.day==date.day;});
+      final hasClass=classes.any((c)=>_weekdayNumber(c['day']?.toString())==date.weekday);
+      final selected=date.year==selectedDay.year&&date.month==selectedDay.month&&date.day==selectedDay.day;
+      cells.add(InkWell(borderRadius:BorderRadius.circular(24),onTap:()=>setState((){selectedDay=date;tab=3;}),child:Container(
+        margin:const EdgeInsets.all(2),decoration:BoxDecoration(color:selected?blue.withOpacity(.16):null,border:selected?Border.all(color:blue):null,shape:BoxShape.circle),
+        child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+          Text('$day',style:TextStyle(fontSize:12,fontWeight:selected?FontWeight.bold:FontWeight.normal)),
+          Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+            if(hasClass) Container(width:4,height:4,margin:const EdgeInsets.symmetric(horizontal:1),decoration:const BoxDecoration(color:Color(0xFF16A34A),shape:BoxShape.circle)),
+            if(hasExam) Container(width:4,height:4,margin:const EdgeInsets.symmetric(horizontal:1),decoration:const BoxDecoration(color:blue,shape:BoxShape.circle)),
+          ])
+        ]))));
+    }
+    return Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(children:[
+      Row(children:[
+        const Expanded(child:Text('Calendario',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold))),
+        IconButton(visualDensity:VisualDensity.compact,onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month-1)),icon:const Icon(Icons.chevron_left)),
+        Text(DateFormat('MMM yyyy','es').format(calendarMonth),style:const TextStyle(fontWeight:FontWeight.w600)),
+        IconButton(visualDensity:VisualDensity.compact,onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month+1)),icon:const Icon(Icons.chevron_right)),
+        TextButton(onPressed:()=>setState(()=>tab=3),child:const Text('Abrir')),
+      ]),
+      Row(children:['L','M','X','J','V','S','D'].map((d)=>Expanded(child:Center(child:Text(d,style:const TextStyle(fontSize:11,color:Colors.grey,fontWeight:FontWeight.bold))))).toList()),
+      GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:7,childAspectRatio:1.25,children:cells),
+      const Row(children:[Icon(Icons.circle,size:7,color:Color(0xFF16A34A)),SizedBox(width:4),Text('Clases',style:TextStyle(fontSize:11)),SizedBox(width:12),Icon(Icons.circle,size:7,color:blue),SizedBox(width:4),Text('Exámenes',style:TextStyle(fontSize:11))]),
+    ])));
   }
 
   Widget _dashboard() {
@@ -432,12 +466,14 @@ class _PlannerState extends State<Planner> {
           SizedBox(height:8),Text('Planifica. Organiza. Aprueba.',style:TextStyle(color:Colors.white,fontSize:22,fontWeight:FontWeight.bold)),
         ])),
       const SizedBox(height:12),
+      _homeCalendar(),
+      const SizedBox(height:12),
       _tile('Media general',avg==null?'Sin notas':avg.toStringAsFixed(2)+' / 10',Icons.auto_graph,onTap:()=>go(4)),
       GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:2,childAspectRatio:1.8,children:[
         _tile('Clases',classes.length.toString(),Icons.menu_book,onTap:()=>go(3)),
         _tile('Profesores',teachers.length.toString(),Icons.person,onTap:()=>go(1)),
         _tile('Exámenes',exams.length.toString(),Icons.event,onTap:()=>go(3)),
-        _tile('Notas',grades.length.toString(),Icons.grade,onTap:()=>go(2)),
+        _tile('Notas',_average()==null?'Sin notas':'Media: ${_average()!.toStringAsFixed(2)} / 10',Icons.grade,onTap:()=>go(2)),
       ]),
       const Text('Próximos exámenes',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
       if(upcoming.isEmpty) const Text('Todavía no has añadido exámenes.')
