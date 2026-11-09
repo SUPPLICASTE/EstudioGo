@@ -52,7 +52,7 @@ jobs:
           ]
           for item in permissions:
               if item not in s:
-                  s = s.replace('<application', item + '\\n    <application', 1)
+                  s = s.replace('<application', item + '\n    <application', 1)
           receiver = '''
                   <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
                   <receiver android:enabled="false" android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
@@ -64,7 +64,7 @@ jobs:
                   </receiver>
           '''
           if 'ScheduledNotificationReceiver' not in s:
-              s = s.replace('</application>', receiver + '\\n    </application>')
+              s = s.replace('</application>', receiver + '\n    </application>')
           p.write_text(s)
           PY
       - name: Add camera permission
@@ -73,7 +73,7 @@ jobs:
           from pathlib import Path
           p = Path("android/app/src/main/AndroidManifest.xml")
           s = p.read_text()
-          permission = '    <uses-permission android:name="android.permission.CAMERA" />\\n'
+          permission = '    <uses-permission android:name="android.permission.CAMERA" />\n'
           if permission.strip() not in s:
               s = s.replace('<application', permission + '\n    <application', 1)
           if 'android:usesCleartextTraffic' not in s:
