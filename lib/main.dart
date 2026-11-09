@@ -160,6 +160,17 @@ class _PlannerState extends State<Planner> {
       return _tile(x['name'],sub,icon,onTap:()=>_add(kind,i),trailing:Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Editar',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add(kind,i)),IconButton(tooltip:'Eliminar',icon:const Icon(Icons.delete_outline),onPressed:()=>_delete(data,i))]));
     }));
   }
+  DateTime selectedDay = DateTime.now();
+  Widget _calendar() => Column(children:[
+    CalendarDatePicker(firstDate:DateTime(2020),lastDate:DateTime(2035),initialDate:selectedDay,onDateChanged:(d)=>setState(()=>selectedDay=d)),
+    const Divider(),
+    Expanded(child:Builder(builder:(context){
+      final dayExams=exams.where((e){final d=DateTime.parse(e['date']);return d.year==selectedDay.year&&d.month==selectedDay.month&&d.day==selectedDay.day;}).toList();
+      if(dayExams.isEmpty) return const Center(child:Text('No hay exámenes para este día.'));
+      return ListView(children:dayExams.map((e)=>_tile(e['name'],e['subject']+' · '+DateFormat('dd/MM/yyyy').format(DateTime.parse(e['date'])),Icons.event)).toList());
+    }))
+  ]);
+
   Widget _dashboard() {
     final avg=_average();
     final upcoming=exams.toList()..sort((a,b)=>DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
@@ -187,13 +198,14 @@ class _PlannerState extends State<Planner> {
   @override Widget build(BuildContext context) {
     if (loading) return const Scaffold(body:Center(child:CircularProgressIndicator()));
     final wide=MediaQuery.sizeOf(context).width>=760;
-    final views=[_dashboard(),_list(classes,'classes',Icons.menu_book),_list(teachers,'teachers',Icons.person),_list(exams,'exams',Icons.event),_list(grades,'grades',Icons.grade)];
+    final views=[_dashboard(),_list(classes,'classes',Icons.menu_book),_list(teachers,'teachers',Icons.person),_list(exams,'exams',Icons.event),_list(grades,'grades',Icons.grade),_calendar()];
     const nav=[
       NavigationDestination(icon:Icon(Icons.home_outlined),label:'Inicio'),
       NavigationDestination(icon:Icon(Icons.menu_book),label:'Clases'),
       NavigationDestination(icon:Icon(Icons.person),label:'Profesores'),
       NavigationDestination(icon:Icon(Icons.event),label:'Exámenes'),
       NavigationDestination(icon:Icon(Icons.grade),label:'Notas'),
+      NavigationDestination(icon:Icon(Icons.calendar_month),label:'Calendario'),
     ];
     return Scaffold(
       appBar:AppBar(title:const Row(children:[Icon(Icons.school,color:blue),SizedBox(width:8),Text('Estudio',style:TextStyle(fontWeight:FontWeight.bold)),Text('Go',style:TextStyle(color:blue,fontWeight:FontWeight.bold))]),
@@ -205,10 +217,11 @@ class _PlannerState extends State<Planner> {
             NavigationRailDestination(icon:Icon(Icons.menu_book),label:Text('Clases')),
             NavigationRailDestination(icon:Icon(Icons.person),label:Text('Profesores')),
             NavigationRailDestination(icon:Icon(Icons.event),label:Text('Exámenes')),
-            NavigationRailDestination(icon:Icon(Icons.grade),label:Text('Notas'))]),
+            NavigationRailDestination(icon:Icon(Icons.grade),label:Text('Notas')),
+            NavigationRailDestination(icon:Icon(Icons.calendar_month),label:Text('Calendario'))]),
         const VerticalDivider(width:1),Expanded(child:views[tab])]):views[tab],
       floatingActionButton:tab==0?null:FloatingActionButton(backgroundColor:blue,foregroundColor:Colors.white,
-        onPressed:()=>_add(['','classes','teachers','exams','grades'][tab]),child:const Icon(Icons.add)),
+        onPressed:()=>_add(['','classes','teachers','exams','grades','exams'][tab]),child:const Icon(Icons.add)),
       bottomNavigationBar:wide?null:NavigationBar(selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:nav),
     );
   }
