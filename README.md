@@ -23,7 +23,7 @@
 El APK aparece en build/app/outputs/flutter-apk/app-release.apk.
 
 ## GitHub Actions
-Cada push a main compila el APK. Descárgalo en Actions, dentro del artefacto EstudioGo-APK.
+Cada push a main compila el APK y la versión web. Descarga EstudioGo-APK o EstudioGo-Web en Actions. La versión web se puede publicar en GitHub Pages para abrirla desde el ordenador.
 
 ## QR y sincronización
 Esta versión transfiere una copia de los datos mediante QR. No es sincronización automática en tiempo real ni usa la nube; para ello se necesita un backend como Firebase o Supabase.
