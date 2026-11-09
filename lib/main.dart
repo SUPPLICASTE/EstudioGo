@@ -338,6 +338,13 @@ class _PlannerState extends State<Planner> {
   }
   DateTime selectedDay = DateTime.now();
   DateTime calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  int _weekdayNumber(String? day) => const {
+    'Lunes': DateTime.monday, 'Martes': DateTime.tuesday,
+    'Miércoles': DateTime.wednesday, 'Jueves': DateTime.thursday,
+    'Viernes': DateTime.friday, 'Sábado': DateTime.saturday,
+    'Domingo': DateTime.sunday,
+  }[day] ?? 0;
+
   Widget _calendar() {
     final firstWeekday = DateTime(calendarMonth.year, calendarMonth.month, 1).weekday;
     final days = DateUtils.getDaysInMonth(calendarMonth.year, calendarMonth.month);
@@ -346,12 +353,27 @@ class _PlannerState extends State<Planner> {
     for (int day=1; day<=days; day++) {
       final date=DateTime(calendarMonth.year,calendarMonth.month,day);
       final hasExam=exams.any((e){final d=DateTime.parse(e['date']);return d.year==date.year&&d.month==date.month&&d.day==date.day;});
+      final hasClass=classes.any((c)=>_weekdayNumber(c['day']?.toString())==date.weekday);
       final selected=date.year==selectedDay.year&&date.month==selectedDay.month&&date.day==selectedDay.day;
       cells.add(InkWell(borderRadius:BorderRadius.circular(30),onTap:()=>setState(()=>selectedDay=date),child:Container(
         margin:const EdgeInsets.all(3),decoration:BoxDecoration(color:selected?blue.withOpacity(.16):null,border:selected?Border.all(color:blue):null,shape:BoxShape.circle),
-        child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Text('$day',style:TextStyle(fontWeight:selected?FontWeight.bold:FontWeight.normal)),if(hasExam) Container(width:5,height:5,decoration:const BoxDecoration(color:blue,shape:BoxShape.circle))]))));
+        child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+          Text('$day',style:TextStyle(fontWeight:selected?FontWeight.bold:FontWeight.normal)),
+          Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+            if(hasClass) Container(width:5,height:5,margin:const EdgeInsets.symmetric(horizontal:1),decoration:const BoxDecoration(color:Color(0xFF16A34A),shape:BoxShape.circle)),
+            if(hasExam) Container(width:5,height:5,margin:const EdgeInsets.symmetric(horizontal:1),decoration:const BoxDecoration(color:blue,shape:BoxShape.circle)),
+          ])
+        ]))));
     }
-    final dayExams=exams.where((e){final d=DateTime.parse(e['date']);return d.year==selectedDay.year&&d.month==selectedDay.month&&d.day==selectedDay.day;}).toList();
+    final dayClasses=<Map<String,dynamic>>[];
+    for(int i=0;i<classes.length;i++) {
+      if(_weekdayNumber(classes[i]['day']?.toString())==selectedDay.weekday) dayClasses.add(classes[i]);
+    }
+    final dayExams=<Map<String,dynamic>>[];
+    for(final e in exams) {
+      final d=DateTime.parse(e['date']);
+      if(d.year==selectedDay.year&&d.month==selectedDay.month&&d.day==selectedDay.day) dayExams.add(e);
+    }
     return Column(children:[
       Padding(padding:const EdgeInsets.fromLTRB(16,8,16,0),child:Row(children:[
         IconButton(onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month-1)),icon:const Icon(Icons.chevron_left)),
@@ -361,9 +383,24 @@ class _PlannerState extends State<Planner> {
       ])),
       Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:['L','M','X','J','V','S','D'].map((d)=>Expanded(child:Center(child:Text(d,style:const TextStyle(fontWeight:FontWeight.bold,color:Colors.grey))))).toList())),
       Padding(padding:const EdgeInsets.all(8),child:GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:7,childAspectRatio:1.15,children:cells)),
+      const Padding(padding:EdgeInsets.symmetric(horizontal:16),child:Row(children:[
+        Icon(Icons.circle,size:8,color:Color(0xFF16A34A)),SizedBox(width:5),Text('Clases',style:TextStyle(fontSize:12)),
+        SizedBox(width:14),Icon(Icons.circle,size:8,color:blue),SizedBox(width:5),Text('Exámenes',style:TextStyle(fontSize:12))
+      ])),
       const Divider(),
-      Padding(padding:const EdgeInsets.symmetric(horizontal:16,vertical:8),child:Align(alignment:Alignment.centerLeft,child:Text('Exámenes · ${DateFormat('dd/MM/yyyy').format(selectedDay)}',style:const TextStyle(fontWeight:FontWeight.bold)))),
-      Expanded(child:dayExams.isEmpty?const Center(child:Text('No hay exámenes para este día.')):ListView(children:dayExams.map((e)=>_tile(e['name'],e['subject'],Icons.event)).toList()))
+      Padding(padding:const EdgeInsets.symmetric(horizontal:16,vertical:8),child:Align(alignment:Alignment.centerLeft,child:Text('Agenda · ${DateFormat('dd/MM/yyyy').format(selectedDay)}',style:const TextStyle(fontWeight:FontWeight.bold)))),
+      Expanded(child:ListView(children:[
+        if(dayClasses.isEmpty && dayExams.isEmpty) const Padding(padding:EdgeInsets.all(24),child:Center(child:Text('No hay clases ni exámenes para este día.'))),
+        ...dayClasses.map((c){
+          final i=classes.indexOf(c);
+          final detail=[c['time'],c['teacher']].where((v)=>v!=null&&v.toString().isNotEmpty).join(' · ');
+          return _tile(c['name'],'Clase · $detail',Icons.menu_book,onTap:()=>_add('classes',i));
+        }),
+        ...dayExams.map((e){
+          final i=exams.indexOf(e);
+          return _tile(e['name'],'Examen · ${e['subject']}',Icons.event,onTap:()=>_add('exams',i));
+        }),
+      ]))
     ]);
   }
 
@@ -381,6 +418,11 @@ class _PlannerState extends State<Planner> {
   Widget _dashboard() {
     final avg=_average();
     final upcoming=exams.toList()..sort((a,b)=>DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
+    void go(int destination) => setState(()=>tab=destination);
+    void openExam(Map<String,dynamic> e) {
+      final d=DateTime.parse(e['date']);
+      setState((){selectedDay=d;calendarMonth=DateTime(d.year,d.month);tab=3;});
+    }
     return ListView(padding:const EdgeInsets.all(16),children:[
       Container(padding:const EdgeInsets.all(24),decoration:BoxDecoration(
         gradient:const LinearGradient(colors:[Color(0xFF1D4ED8),Color(0xFF60A5FA)]),borderRadius:BorderRadius.circular(22)),
@@ -389,50 +431,64 @@ class _PlannerState extends State<Planner> {
           SizedBox(height:8),Text('Planifica. Organiza. Aprueba.',style:TextStyle(color:Colors.white,fontSize:22,fontWeight:FontWeight.bold)),
         ])),
       const SizedBox(height:12),
-      _tile('Media general',avg==null?'Sin notas':avg.toStringAsFixed(2)+' / 10',Icons.auto_graph),
+      _tile('Media general',avg==null?'Sin notas':avg.toStringAsFixed(2)+' / 10',Icons.auto_graph,onTap:()=>go(4)),
       GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:2,childAspectRatio:1.8,children:[
-        _tile('Clases',classes.length.toString(),Icons.menu_book),
-        _tile('Profesores',teachers.length.toString(),Icons.person),
-        _tile('Exámenes',exams.length.toString(),Icons.event),
-        _tile('Notas',grades.length.toString(),Icons.grade),
+        _tile('Clases',classes.length.toString(),Icons.menu_book,onTap:()=>go(3)),
+        _tile('Profesores',teachers.length.toString(),Icons.person,onTap:()=>go(1)),
+        _tile('Exámenes',exams.length.toString(),Icons.event,onTap:()=>go(3)),
+        _tile('Notas',grades.length.toString(),Icons.grade,onTap:()=>go(2)),
       ]),
       const Text('Próximos exámenes',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
       if(upcoming.isEmpty) const Text('Todavía no has añadido exámenes.')
-      else ...upcoming.take(4).map((e)=>_tile(e['name'],e['subject']+' · '+DateFormat('dd/MM/yyyy').format(DateTime.parse(e['date'])),Icons.event)),
+      else ...upcoming.take(4).map((e)=>_tile(e['name'],e['subject']+' · '+DateFormat('dd/MM/yyyy').format(DateTime.parse(e['date'])),Icons.event,onTap:()=>openExam(e))),
       _tile('Criterio de evaluación','$criterion · ${criterionMin.toString()}–${criterionMax.toString()}',Icons.tune,onTap:_settings),
     ]);
   }
   @override Widget build(BuildContext context) {
     final wide=MediaQuery.sizeOf(context).width>=760;
-    final views=[_dashboard(),_list(classes,'classes',Icons.menu_book),_list(teachers,'teachers',Icons.person),_list(exams,'exams',Icons.event),_list(grades,'grades',Icons.grade),_calendar(),_statistics()];
+    final views=[_dashboard(),_list(teachers,'teachers',Icons.person),_list(grades,'grades',Icons.grade),_calendar(),_statistics()];
     const nav=[
       NavigationDestination(icon:Icon(Icons.home_outlined),label:'Inicio'),
-      NavigationDestination(icon:Icon(Icons.menu_book),label:'Clases'),
       NavigationDestination(icon:Icon(Icons.person),label:'Profesores'),
-      NavigationDestination(icon:Icon(Icons.event),label:'Exámenes'),
       NavigationDestination(icon:Icon(Icons.grade),label:'Notas'),
       NavigationDestination(icon:Icon(Icons.calendar_month),label:'Calendario'),
       NavigationDestination(icon:Icon(Icons.query_stats),label:'Estadísticas'),
     ];
+    Future<void> addCalendarEntry() async {
+      final kind=await showModalBottomSheet<String>(context:context,builder:(ctx)=>SafeArea(child:Wrap(children:[
+        ListTile(leading:const Icon(Icons.menu_book),title:const Text('Añadir clase'),onTap:()=>Navigator.pop(ctx,'classes')),
+        ListTile(leading:const Icon(Icons.event),title:const Text('Añadir examen'),onTap:()=>Navigator.pop(ctx,'exams')),
+      ])));
+      if(kind!=null) await _add(kind);
+    }
     return Scaffold(
-      appBar:AppBar(title:const Row(children:[Icon(Icons.school,color:blue),SizedBox(width:8),Text('Estudio',style:TextStyle(fontWeight:FontWeight.bold)),Text('Go',style:TextStyle(color:blue,fontWeight:FontWeight.bold))]),
+      appBar:AppBar(title:const Row(children:[
+        EstudioGoMark(size:30),SizedBox(width:9),
+        Text('Estudio',style:TextStyle(fontWeight:FontWeight.bold)),Text('Go',style:TextStyle(color:blue,fontWeight:FontWeight.bold))
+      ]),
         actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(tooltip:'Sincronizar por Wi-Fi',onPressed:_startWifiSync,icon:const Icon(Icons.wifi)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2)),IconButton(onPressed:_settings,icon:const Icon(Icons.tune))]),
       body:wide?Row(children:[
         NavigationRail(selectedIndex:tab,labelType:NavigationRailLabelType.all,onDestinationSelected:(v)=>setState(()=>tab=v),
           destinations:const [
             NavigationRailDestination(icon:Icon(Icons.home_outlined),label:Text('Inicio')),
-            NavigationRailDestination(icon:Icon(Icons.menu_book),label:Text('Clases')),
             NavigationRailDestination(icon:Icon(Icons.person),label:Text('Profesores')),
-            NavigationRailDestination(icon:Icon(Icons.event),label:Text('Exámenes')),
             NavigationRailDestination(icon:Icon(Icons.grade),label:Text('Notas')),
             NavigationRailDestination(icon:Icon(Icons.calendar_month),label:Text('Calendario')),
             NavigationRailDestination(icon:Icon(Icons.query_stats),label:Text('Estadísticas'))]),
         const VerticalDivider(width:1),Expanded(child:views[tab])]):views[tab],
       floatingActionButton:tab==0?null:FloatingActionButton(backgroundColor:blue,foregroundColor:Colors.white,
-        onPressed:()=>_add(['','classes','teachers','exams','grades','exams','classes'][tab]),child:const Icon(Icons.add)),
+        onPressed:tab==3?addCalendarEntry:()=>_add(tab==1?'teachers':'grades'),child:const Icon(Icons.add)),
       bottomNavigationBar:wide?null:NavigationBar(selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:nav),
     );
   }
+}
+
+class EstudioGoMark extends StatelessWidget {
+  final double size;
+  const EstudioGoMark({super.key,this.size=36});
+  @override Widget build(BuildContext context)=>SizedBox(width:size,height:size,child:DecoratedBox(
+    decoration:BoxDecoration(gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF1D4ED8),Color(0xFF60A5FA)]),borderRadius:BorderRadius.circular(size*.28)),
+    child:Icon(Icons.menu_book_rounded,color:Colors.white,size:size*.62)));
 }
 
 class ScanPage extends StatefulWidget {
