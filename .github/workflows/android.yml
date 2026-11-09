@@ -107,7 +107,7 @@ jobs:
           }
           """
           if "setCompileSdkVersion" not in gradle:
-              root.write_text(gradle + "\\n" + force_sdk)
+              root.write_text(gradle + "\n" + force_sdk)
           PY
       - name: Descargar dependencias
         run: flutter pub get
