@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -227,6 +230,68 @@ class _PlannerState extends State<Planner> {
     });
     await _save();
   }
+  Future<void> _exportBackup() async {
+    final data = utf8.encode(const JsonEncoder.withIndent('  ').convert({
+      'app': 'EstudioGo',
+      'formatVersion': 1,
+      'createdAt': DateTime.now().toIso8601String(),
+      'classes': classes,
+      'teachers': teachers,
+      'exams': exams,
+      'grades': grades,
+      'criterion': criterion,
+    }));
+    await Share.shareXFiles([
+      XFile.fromData(Uint8List.fromList(data), mimeType: 'application/json', name: 'estudiogo_backup.json'),
+    ], text: 'Copia de seguridad de EstudioGo');
+  }
+
+  Future<void> _restoreBackup() async {
+    try {
+      final picked = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json'], withData: true);
+      if (picked == null || picked.files.single.bytes == null) return;
+      final decoded = jsonDecode(utf8.decode(picked.files.single.bytes!));
+      if (decoded is! Map || decoded['app'] != 'EstudioGo') throw const FormatException('El archivo no es una copia de EstudioGo.');
+      final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: const Text('Restaurar copia de seguridad'),
+        content: const Text('Se reemplazarán las clases, profesores, exámenes y notas actuales por los datos de la copia. Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Restaurar')),
+        ],
+      ));
+      if (ok != true) return;
+      List<Map<String, dynamic>> parseList(String key) {
+        final value = decoded[key];
+        if (value is! List) return [];
+        return value.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+      setState(() {
+        classes..clear()..addAll(parseList('classes'));
+        teachers..clear()..addAll(parseList('teachers'));
+        exams..clear()..addAll(parseList('exams'));
+        grades..clear()..addAll(parseList('grades'));
+        criterion = decoded['criterion'] == 'Media ponderada' ? 'Media ponderada' : 'Media aritmética';
+      });
+      await _save();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copia restaurada correctamente.')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo restaurar la copia: $e')));
+    }
+  }
+
+  Future<void> _exportGradesCsv() async {
+    String cell(Object? value) => '"${(value ?? '').toString().replaceAll('"', '""')}"';
+    final rows = <String>[
+      ['Asignatura', 'Evaluación', 'Nota', 'Peso'].map(cell).join(';'),
+      ...grades.map((g) => [g['subject'], g['name'], g['value'], g['weight']].map(cell).join(';')),
+    ];
+    final csv = '\\uFEFF' + rows.join('\\r\\n');
+    await Share.shareXFiles([
+      XFile.fromData(Uint8List.fromList(utf8.encode(csv)), mimeType: 'text/csv', name: 'estudiogo_notas.csv'),
+    ], text: 'Notas de EstudioGo');
+  }
+
   Future<void> _scan() async {
     await Navigator.push(context,MaterialPageRoute(builder:(_)=>ScanPage(onRead:(raw) async {
       if(raw.startsWith('http://') || raw.startsWith('https://')) {
@@ -357,7 +422,7 @@ class _PlannerState extends State<Planner> {
     ];
     return Scaffold(
       appBar:AppBar(title:const Row(children:[Icon(Icons.school,color:blue),SizedBox(width:8),Text('Estudio',style:TextStyle(fontWeight:FontWeight.bold)),Text('Go',style:TextStyle(color:blue,fontWeight:FontWeight.bold))]),
-        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(tooltip:'Sincronizar por Wi-Fi',onPressed:_startWifiSync,icon:const Icon(Icons.wifi)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2)),IconButton(onPressed:_settings,icon:const Icon(Icons.tune))]),
+        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(tooltip:'Sincronizar por Wi-Fi',onPressed:_startWifiSync,icon:const Icon(Icons.wifi)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2)),IconButton(onPressed:_settings,icon:const Icon(Icons.tune)),PopupMenuButton<String>(tooltip:'Copias y exportación',onSelected:(v){if(v=='backup')_exportBackup();if(v=='restore')_restoreBackup();if(v=='csv')_exportGradesCsv();},itemBuilder:(_)=>const [PopupMenuItem(value:'backup',child:ListTile(leading:Icon(Icons.backup),title:Text('Crear copia de seguridad'))),PopupMenuItem(value:'restore',child:ListTile(leading:Icon(Icons.restore),title:Text('Restaurar copia'))),PopupMenuItem(value:'csv',child:ListTile(leading:Icon(Icons.table_chart),title:Text('Exportar notas a CSV')))])]),
       body:wide?Row(children:[
         NavigationRail(selectedIndex:tab,labelType:NavigationRailLabelType.all,onDestinationSelected:(v)=>setState(()=>tab=v),
           destinations:const [
