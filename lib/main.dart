@@ -1,12 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:intl/intl.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -66,6 +63,8 @@ class _PlannerState extends State<Planner> {
   int tab = 0;
   bool loading = true;
   String criterion = 'Media aritmética';
+  double criterionMin = 0;
+  double criterionMax = 10;
   final classes = <Map<String,dynamic>>[];
   final teachers = <Map<String,dynamic>>[];
   final exams = <Map<String,dynamic>>[];
@@ -94,6 +93,8 @@ class _PlannerState extends State<Planner> {
       read('exams', exams);
       read('grades', grades);
       criterion = p.getString('criterion') ?? criterion;
+      criterionMin = p.getDouble('criterionMin') ?? criterionMin;
+      criterionMax = p.getDouble('criterionMax') ?? criterionMax;
     } catch (_) {
       // Si el almacenamiento de Windows falla, abrir la app igualmente.
     }
@@ -124,6 +125,8 @@ class _PlannerState extends State<Planner> {
     await p.setString('exams', jsonEncode(exams));
     await p.setString('grades', jsonEncode(grades));
     await p.setString('criterion', criterion);
+    await p.setDouble('criterionMin', criterionMin);
+    await p.setDouble('criterionMax', criterionMax);
     try { await _scheduleExamReminders(); } catch (_) {}
   }
   double? _average([String? subject]) {
@@ -148,6 +151,9 @@ class _PlannerState extends State<Planner> {
     final val = TextEditingController(text: old == null ? '' : old['value']?.toString() ?? '');
     String? subject = old?['subject']?.toString();
     DateTime date = old?['date'] == null ? DateTime.now() : DateTime.parse(old!['date']);
+    String? classDay = old?['day']?.toString();
+    String classTime = old?['time']?.toString() ?? '08:00';
+    String? classTeacher = old?['teacher']?.toString();
     final isTeacher = kind == 'teachers', isExam = kind == 'exams', isGrade = kind == 'grades';
     final result = await showDialog<Map<String,dynamic>>(context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, refresh) => AlertDialog(
@@ -155,12 +161,33 @@ class _PlannerState extends State<Planner> {
         content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: name, decoration: InputDecoration(labelText: isGrade ? 'Descripción' : isExam ? 'Nombre del examen' : isTeacher ? 'Nombre del profesor' : 'Asignatura')),
           if (isTeacher) TextField(controller: extra, decoration: const InputDecoration(labelText: 'Correo o contacto')),
+          if (kind == 'classes') ...[
+            DropdownButtonFormField<String>(
+              value: classDay,
+              decoration: const InputDecoration(labelText: 'Día de la semana'),
+              items: ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((d) => DropdownMenuItem(value:d, child:Text(d))).toList(),
+              onChanged: (v) => refresh(() => classDay = v)),
+            DropdownButtonFormField<String>(
+              value: classTeacher,
+              decoration: const InputDecoration(labelText: 'Profesor'),
+              items: teachers.map((t) => DropdownMenuItem(value:t['name'].toString(), child:Text(t['name'].toString()))).toList(),
+              onChanged: (v) => refresh(() => classTeacher = v)),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final picked = await showTimePicker(context:ctx, initialTime:TimeOfDay(
+                  hour:int.tryParse(classTime.split(':')[0]) ?? 8,
+                  minute:int.tryParse(classTime.split(':').length > 1 ? classTime.split(':')[1] : '0') ?? 0));
+                if (picked != null) refresh(() => classTime = '${picked.hour.toString().padLeft(2,'0')}:${picked.minute.toString().padLeft(2,'0')}');
+              },
+              icon:const Icon(Icons.access_time),
+              label:Text('Hora: $classTime')),
+          ],
           if (isExam || isGrade) DropdownButtonFormField<String>(
             decoration: const InputDecoration(labelText: 'Asignatura'),
             items: classes.map((c) => DropdownMenuItem(value: c['name'] as String, child: Text(c['name'] as String))).toList(),
             onChanged: (v) => refresh(() => subject = v)),
           if (isGrade) ...[
-            TextField(controller: val, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Nota (0–10)')),
+            TextField(controller: val, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Nota ($criterionMin–$criterionMax)')),
             TextField(controller: extra, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Peso (%)')),
           ],
           if (isExam) OutlinedButton(onPressed: () async {
@@ -175,10 +202,11 @@ class _PlannerState extends State<Planner> {
             if (name.text.trim().isEmpty || ((isExam || isGrade) && subject == null)) return;
             final item = <String,dynamic>{'name': name.text.trim()};
             if (isTeacher) item['contact'] = extra.text;
+            if (kind == 'classes') item.addAll({'day':classDay ?? '', 'time':classTime, 'teacher':classTeacher ?? ''});
             if (isExam) item.addAll({'subject':subject,'date':date.toIso8601String()});
             if (isGrade) {
               final n = double.tryParse(val.text.replaceAll(',', '.'));
-              if (n == null || n < 0 || n > 10) return;
+              if (n == null || n < criterionMin || n > criterionMax) return;
               item.addAll({'subject':subject,'value':n,'weight':double.tryParse(extra.text) ?? 1});
             }
             Navigator.pop(ctx, item);
@@ -199,14 +227,40 @@ class _PlannerState extends State<Planner> {
     setState(() => list.removeAt(i)); await _save();
   }
   Future<void> _settings() async {
-    final v = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Criterio de evaluación'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: ['Media aritmética','Media ponderada'].map((s) =>
-        RadioListTile<String>(value:s, groupValue:criterion, title:Text(s), onChanged:(x)=>Navigator.pop(ctx,x))).toList()),
-      actions: [TextButton(onPressed:()=>Navigator.pop(ctx), child:const Text('Cerrar'))]));
-    if (v != null) { setState(() => criterion = v); await _save(); }
+    final minCtrl = TextEditingController(text: criterionMin.toString());
+    final maxCtrl = TextEditingController(text: criterionMax.toString());
+    String selectedCriterion = criterion;
+    final result = await showDialog<Map<String,dynamic>>(context: context, builder: (ctx) =>
+      AlertDialog(
+        title: const Text('Criterio de evaluación'),
+        content: StatefulBuilder(builder: (ctx, refresh) => Column(mainAxisSize:MainAxisSize.min, children:[
+          DropdownButtonFormField<String>(
+            value:selectedCriterion,
+            decoration:const InputDecoration(labelText:'Cálculo de la media'),
+            items:['Media aritmética','Media ponderada'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),
+            onChanged:(v)=>refresh(()=>selectedCriterion=v ?? selectedCriterion),
+          ),
+          TextField(controller:minCtrl, keyboardType:const TextInputType.numberWithOptions(decimal:true), decoration:const InputDecoration(labelText:'Nota mínima (X)')),
+          TextField(controller:maxCtrl, keyboardType:const TextInputType.numberWithOptions(decimal:true), decoration:const InputDecoration(labelText:'Nota máxima (Y)')),
+          const SizedBox(height:6),
+          const Text('Las notas se podrán introducir dentro de este intervalo numérico.'),
+        ])),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Cancelar')),
+          FilledButton(onPressed:(){
+            final min=double.tryParse(minCtrl.text.replaceAll(',','.'));
+            final max=double.tryParse(maxCtrl.text.replaceAll(',','.'));
+            if(min==null || max==null || min>=max) return;
+            Navigator.pop(ctx, {'min':min,'max':max,'criterion':selectedCriterion});
+          },child:const Text('Guardar')),
+        ],
+      ));
+    if(result!=null) {
+      setState(() { criterionMin=result['min']; criterionMax=result['max']; criterion=result['criterion']; });
+      await _save();
+    }
   }
-  String _export() => jsonEncode({'app':'EstudioGo','classes':classes,'teachers':teachers,'exams':exams,'grades':grades,'criterion':criterion});
+  String _export() => jsonEncode({'app':'EstudioGo','classes':classes,'teachers':teachers,'exams':exams,'grades':grades,'criterion':criterion,'criterionMin':criterionMin,'criterionMax':criterionMax});
   Future<void> _importSnapshot(String raw) async {
     final d=jsonDecode(raw) as Map<String,dynamic>;
     if(d['app']!='EstudioGo') throw const FormatException('Copia no válida');
@@ -227,71 +281,11 @@ class _PlannerState extends State<Planner> {
       exams..clear()..addAll(mergedExams);
       grades..clear()..addAll(mergedGrades);
       criterion=d['criterion']??criterion;
+      criterionMin=(d['criterionMin'] as num?)?.toDouble() ?? criterionMin;
+      criterionMax=(d['criterionMax'] as num?)?.toDouble() ?? criterionMax;
     });
     await _save();
   }
-  Future<void> _exportBackup() async {
-    final data = utf8.encode(const JsonEncoder.withIndent('  ').convert({
-      'app': 'EstudioGo',
-      'formatVersion': 1,
-      'createdAt': DateTime.now().toIso8601String(),
-      'classes': classes,
-      'teachers': teachers,
-      'exams': exams,
-      'grades': grades,
-      'criterion': criterion,
-    }));
-    await Share.shareXFiles([
-      XFile.fromData(Uint8List.fromList(data), mimeType: 'application/json', name: 'estudiogo_backup.json'),
-    ], text: 'Copia de seguridad de EstudioGo');
-  }
-
-  Future<void> _restoreBackup() async {
-    try {
-      final picked = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json'], withData: true);
-      if (picked == null || picked.files.single.bytes == null) return;
-      final decoded = jsonDecode(utf8.decode(picked.files.single.bytes!));
-      if (decoded is! Map || decoded['app'] != 'EstudioGo') throw const FormatException('El archivo no es una copia de EstudioGo.');
-      final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-        title: const Text('Restaurar copia de seguridad'),
-        content: const Text('Se reemplazarán las clases, profesores, exámenes y notas actuales por los datos de la copia. Esta acción no se puede deshacer.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Restaurar')),
-        ],
-      ));
-      if (ok != true) return;
-      List<Map<String, dynamic>> parseList(String key) {
-        final value = decoded[key];
-        if (value is! List) return [];
-        return value.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
-      }
-      setState(() {
-        classes..clear()..addAll(parseList('classes'));
-        teachers..clear()..addAll(parseList('teachers'));
-        exams..clear()..addAll(parseList('exams'));
-        grades..clear()..addAll(parseList('grades'));
-        criterion = decoded['criterion'] == 'Media ponderada' ? 'Media ponderada' : 'Media aritmética';
-      });
-      await _save();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copia restaurada correctamente.')));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo restaurar la copia: $e')));
-    }
-  }
-
-  Future<void> _exportGradesCsv() async {
-    String cell(Object? value) => '"${(value ?? '').toString().replaceAll('"', '""')}"';
-    final rows = <String>[
-      ['Asignatura', 'Evaluación', 'Nota', 'Peso'].map(cell).join(';'),
-      ...grades.map((g) => [g['subject'], g['name'], g['value'], g['weight']].map(cell).join(';')),
-    ];
-    final csv = '\\uFEFF' + rows.join('\\r\\n');
-    await Share.shareXFiles([
-      XFile.fromData(Uint8List.fromList(utf8.encode(csv)), mimeType: 'text/csv', name: 'estudiogo_notas.csv'),
-    ], text: 'Notas de EstudioGo');
-  }
-
   Future<void> _scan() async {
     await Navigator.push(context,MaterialPageRoute(builder:(_)=>ScanPage(onRead:(raw) async {
       if(raw.startsWith('http://') || raw.startsWith('https://')) {
@@ -336,6 +330,7 @@ class _PlannerState extends State<Planner> {
       final x=data[i];
       String sub='Asignatura';
       if (kind=='teachers') sub=x['contact'] ?? 'Profesor';
+      if (kind=='classes') sub=[x['day'],x['time'],x['teacher']].where((v)=>v!=null && v.toString().isNotEmpty).join(' · ');
       if (kind=='grades') sub=x['subject']+' · '+(x['value'] as num).toStringAsFixed(2)+'/10';
       if (kind=='exams') sub=x['subject']+' · '+DateFormat('dd/MM/yyyy').format(DateTime.parse(x['date']));
       return _tile(x['name'],sub,icon,onTap:()=>_add(kind,i),trailing:Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Editar',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add(kind,i)),IconButton(tooltip:'Eliminar',icon:const Icon(Icons.delete_outline),onPressed:()=>_delete(data,i))]));
@@ -404,7 +399,7 @@ class _PlannerState extends State<Planner> {
       const Text('Próximos exámenes',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
       if(upcoming.isEmpty) const Text('Todavía no has añadido exámenes.')
       else ...upcoming.take(4).map((e)=>_tile(e['name'],e['subject']+' · '+DateFormat('dd/MM/yyyy').format(DateTime.parse(e['date'])),Icons.event)),
-      _tile('Criterio de evaluación',criterion,Icons.tune,onTap:_settings),
+      _tile('Criterio de evaluación','$criterion · ${criterionMin.toString()}–${criterionMax.toString()}',Icons.tune,onTap:_settings),
     ]);
   }
   @override Widget build(BuildContext context) {
@@ -422,7 +417,7 @@ class _PlannerState extends State<Planner> {
     ];
     return Scaffold(
       appBar:AppBar(title:const Row(children:[Icon(Icons.school,color:blue),SizedBox(width:8),Text('Estudio',style:TextStyle(fontWeight:FontWeight.bold)),Text('Go',style:TextStyle(color:blue,fontWeight:FontWeight.bold))]),
-        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(tooltip:'Sincronizar por Wi-Fi',onPressed:_startWifiSync,icon:const Icon(Icons.wifi)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2)),IconButton(onPressed:_settings,icon:const Icon(Icons.tune)),PopupMenuButton<String>(tooltip:'Copias y exportación',onSelected:(v){if(v=='backup')_exportBackup();if(v=='restore')_restoreBackup();if(v=='csv')_exportGradesCsv();},itemBuilder:(_)=>const [PopupMenuItem(value:'backup',child:ListTile(leading:Icon(Icons.backup),title:Text('Crear copia de seguridad'))),PopupMenuItem(value:'restore',child:ListTile(leading:Icon(Icons.restore),title:Text('Restaurar copia'))),PopupMenuItem(value:'csv',child:ListTile(leading:Icon(Icons.table_chart),title:Text('Exportar notas a CSV')))])]),
+        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(tooltip:'Sincronizar por Wi-Fi',onPressed:_startWifiSync,icon:const Icon(Icons.wifi)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2)),IconButton(onPressed:_settings,icon:const Icon(Icons.tune))]),
       body:wide?Row(children:[
         NavigationRail(selectedIndex:tab,labelType:NavigationRailLabelType.all,onDestinationSelected:(v)=>setState(()=>tab=v),
           destinations:const [
