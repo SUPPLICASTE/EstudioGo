@@ -75,13 +75,15 @@ class _PlannerState extends State<Planner> {
     } catch (_) {
       // Si el almacenamiento de Windows falla, abrir la app igualmente.
     }
+    // Mostrar la aplicación sin esperar a que Android inicialice las notificaciones.
+    if (mounted) setState(() => loading = false);
+    // Los recordatorios se preparan en segundo plano para evitar quedarse en gris
+    // si el sistema tarda o bloquea la inicialización de notificaciones.
     try {
       await initNotifications();
       await _scheduleExamReminders();
     } catch (_) {
-      // Las notificaciones pueden no estar disponibles en Windows/web.
-    } finally {
-      if (mounted) setState(() => loading = false);
+      // La aplicación sigue funcionando aunque fallen las notificaciones.
     }
   }
   Future<void> _scheduleExamReminders() async {
