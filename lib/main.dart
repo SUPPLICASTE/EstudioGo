@@ -18,7 +18,26 @@ Future<void> initNotifications() async {
   await notifications.initialize(const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')));
   await notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
 }
-void main() => runApp(const EstudioGo());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // En versiones release Flutter suele mostrar solo un bloque gris cuando
+  // falla un widget. Mostrar el error concreto para poder diagnosticarlo.
+  ErrorWidget.builder = (FlutterErrorDetails details) => Material(
+    color: const Color(0xFFFFF1F2),
+    child: SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: SelectableText(
+          'ESTUDIOGO NO PUDO MOSTRAR LA PANTALLA\\n\\n'
+          '${details.exceptionAsString()}\\n\\n'
+          'Haz una captura de este mensaje y envíala para corregir el error.',
+          style: const TextStyle(color: Color(0xFF991B1B), fontSize: 16),
+        ),
+      ),
+    ),
+  );
+  runApp(const EstudioGo());
+}
 
 class EstudioGo extends StatefulWidget {
   const EstudioGo({super.key});
