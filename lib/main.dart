@@ -64,14 +64,16 @@ class _PlannerState extends State<Planner> {
     return items.fold<double>(0, (s,g) => s + (g['value'] as num).toDouble()) / items.length;
   }
 
-  Future<void> _add(String kind) async {
-    final name = TextEditingController(), extra = TextEditingController(), val = TextEditingController();
-    String? subject;
-    DateTime date = DateTime.now();
+  Future<void> _add(String kind, [int? editIndex]) async {
+    final target = kind == 'classes' ? classes : kind == 'teachers' ? teachers : kind == 'exams' ? exams : grades;
+    final old = editIndex == null ? null : target[editIndex];
+    final name = TextEditingController(text: old?['name']?.toString() ?? ''), extra = TextEditingController(text: kind == 'teachers' ? old?['contact']?.toString() ?? '' : kind == 'grades' ? old?['weight']?.toString() ?? '' : ''), val = TextEditingController(text: old?['value']?.toString() ?? '');
+    String? subject = old?['subject']?.toString();
+    DateTime date = old?['date'] == null ? DateTime.now() : DateTime.parse(old!['date']);
     final isTeacher = kind == 'teachers', isExam = kind == 'exams', isGrade = kind == 'grades';
     final result = await showDialog<Map<String,dynamic>>(context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, refresh) => AlertDialog(
-        title: Text({'classes':'Nueva clase','teachers':'Nuevo profesor','exams':'Nuevo examen','grades':'Nueva nota'}[kind]!),
+        title: Text(editIndex == null ? {'classes':'Nueva clase','teachers':'Nuevo profesor','exams':'Nuevo examen','grades':'Nueva nota'}[kind]! : 'Editar elemento'),
         content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: name, decoration: InputDecoration(labelText: isGrade ? 'Descripción' : isExam ? 'Nombre del examen' : isTeacher ? 'Nombre del profesor' : 'Asignatura')),
           if (isTeacher) TextField(controller: extra, decoration: const InputDecoration(labelText: 'Correo o contacto')),
@@ -107,10 +109,7 @@ class _PlannerState extends State<Planner> {
       )));
     if (result == null) return;
     setState(() {
-      if (kind == 'classes') classes.add(result);
-      if (kind == 'teachers') teachers.add(result);
-      if (kind == 'exams') exams.add(result);
-      if (kind == 'grades') grades.add(result);
+      if (editIndex == null) { target.add(result); } else { target[editIndex] = result; }
     });
     await _save();
   }
@@ -158,7 +157,7 @@ class _PlannerState extends State<Planner> {
       if (kind=='teachers') sub=x['contact'] ?? 'Profesor';
       if (kind=='grades') sub=x['subject']+' · '+(x['value'] as num).toStringAsFixed(2)+'/10';
       if (kind=='exams') sub=x['subject']+' · '+DateFormat('dd/MM/yyyy').format(DateTime.parse(x['date']));
-      return _tile(x['name'],sub,icon,trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:()=>_delete(data,i)));
+      return _tile(x['name'],sub,icon,onTap:()=>_add(kind,i),trailing:Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Editar',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add(kind,i)),IconButton(tooltip:'Eliminar',icon:const Icon(Icons.delete_outline),onPressed:()=>_delete(data,i))]));
     }));
   }
   Widget _dashboard() {
