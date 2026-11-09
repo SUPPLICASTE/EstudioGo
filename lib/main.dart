@@ -183,6 +183,7 @@ class _PlannerState extends State<Planner> {
               label:Text('Hora: $classTime')),
           ],
           if (isExam || isGrade) DropdownButtonFormField<String>(
+            initialValue: subject,
             decoration: const InputDecoration(labelText: 'Asignatura'),
             items: classes.map((c) => DropdownMenuItem(value: c['name'] as String, child: Text(c['name'] as String))).toList(),
             onChanged: (v) => refresh(() => subject = v)),
@@ -394,11 +395,11 @@ class _PlannerState extends State<Planner> {
         ...dayClasses.map((c){
           final i=classes.indexOf(c);
           final detail=[c['time'],c['teacher']].where((v)=>v!=null&&v.toString().isNotEmpty).join(' · ');
-          return _tile(c['name'],'Clase · $detail',Icons.menu_book,onTap:()=>_add('classes',i));
+          return _tile(c['name'],'Clase · $detail',Icons.menu_book,onTap:()=>_add('classes',i),trailing:IconButton(tooltip:'Editar clase',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add('classes',i)));
         }),
         ...dayExams.map((e){
           final i=exams.indexOf(e);
-          return _tile(e['name'],'Examen · ${e['subject']}',Icons.event,onTap:()=>_add('exams',i));
+          return _tile(e['name'],'Examen · ${e['subject']}',Icons.event,onTap:()=>_add('exams',i),trailing:IconButton(tooltip:'Editar examen',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add('exams',i)));
         }),
       ]))
     ]);
@@ -466,7 +467,7 @@ class _PlannerState extends State<Planner> {
         EstudioGoMark(size:30),SizedBox(width:9),
         Text('Estudio',style:TextStyle(fontWeight:FontWeight.bold)),Text('Go',style:TextStyle(color:blue,fontWeight:FontWeight.bold))
       ]),
-        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(tooltip:'Sincronizar por Wi-Fi',onPressed:_startWifiSync,icon:const Icon(Icons.wifi)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2)),IconButton(onPressed:_settings,icon:const Icon(Icons.tune))]),
+        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(tooltip:'Sincronizar por Wi-Fi',onPressed:_startWifiSync,icon:const Icon(Icons.wifi)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2))]),
       body:wide?Row(children:[
         NavigationRail(selectedIndex:tab,labelType:NavigationRailLabelType.all,onDestinationSelected:(v)=>setState(()=>tab=v),
           destinations:const [
