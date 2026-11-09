@@ -104,6 +104,8 @@ jobs:
       - name: Generate Windows project
         run: flutter create --platforms=windows --project-name=estudiogo .
       - run: flutter pub get
+      - name: Allow current MSVC coroutine compatibility for notification plugin
+        run: echo "CXXFLAGS=/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS" >> $env:GITHUB_ENV
       - name: Build Windows
         run: flutter build windows --release
       - uses: actions/upload-artifact@v4
