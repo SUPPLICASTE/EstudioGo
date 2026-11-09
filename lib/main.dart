@@ -470,7 +470,7 @@ class _PlannerState extends State<Planner> {
       const SizedBox(height:12),
       _tile('Media general',avg==null?'Sin notas':avg.toStringAsFixed(2)+' / 10',Icons.auto_graph,onTap:()=>go(4)),
       GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:2,childAspectRatio:1.8,children:[
-        _tile('Clases',classes.length.toString(),Icons.menu_book,onTap:()=>go(3)),
+        _tile('Clases',classes.length.toString()+' asignaturas · Ver, editar y eliminar',Icons.menu_book,onTap:()=>go(5)),
         _tile('Profesores',teachers.length.toString(),Icons.person,onTap:()=>go(1)),
         _tile('Exámenes',exams.length.toString(),Icons.event,onTap:()=>go(3)),
         _tile('Notas',_average()==null?'Sin notas':'Media: ${_average()!.toStringAsFixed(2)} / 10',Icons.grade,onTap:()=>go(2)),
@@ -483,13 +483,14 @@ class _PlannerState extends State<Planner> {
   }
   @override Widget build(BuildContext context) {
     final wide=MediaQuery.sizeOf(context).width>=760;
-    final views=[_dashboard(),_list(teachers,'teachers',Icons.person),_list(grades,'grades',Icons.grade),_calendar(),_statistics()];
+    final views=[_dashboard(),_list(teachers,'teachers',Icons.person),_list(grades,'grades',Icons.grade),_calendar(),_statistics(),_list(classes,'classes',Icons.menu_book)];
     const nav=[
       NavigationDestination(icon:Icon(Icons.home_outlined),label:'Inicio'),
       NavigationDestination(icon:Icon(Icons.person),label:'Profesores'),
       NavigationDestination(icon:Icon(Icons.grade),label:'Notas'),
       NavigationDestination(icon:Icon(Icons.calendar_month),label:'Calendario'),
       NavigationDestination(icon:Icon(Icons.query_stats),label:'Estadísticas'),
+      NavigationDestination(icon:Icon(Icons.menu_book),label:'Clases'),
     ];
     Future<void> addCalendarEntry() async {
       final kind=await showModalBottomSheet<String>(context:context,builder:(ctx)=>SafeArea(child:Wrap(children:[
@@ -511,10 +512,11 @@ class _PlannerState extends State<Planner> {
             NavigationRailDestination(icon:Icon(Icons.person),label:Text('Profesores')),
             NavigationRailDestination(icon:Icon(Icons.grade),label:Text('Notas')),
             NavigationRailDestination(icon:Icon(Icons.calendar_month),label:Text('Calendario')),
-            NavigationRailDestination(icon:Icon(Icons.query_stats),label:Text('Estadísticas'))]),
+            NavigationRailDestination(icon:Icon(Icons.query_stats),label:Text('Estadísticas')),
+            NavigationRailDestination(icon:Icon(Icons.menu_book),label:Text('Clases'))]),
         const VerticalDivider(width:1),Expanded(child:views[tab])]):views[tab],
       floatingActionButton:(tab==0||tab==4)?null:FloatingActionButton(backgroundColor:blue,foregroundColor:Colors.white,
-        onPressed:tab==3?addCalendarEntry:()=>_add(tab==1?'teachers':'grades'),child:const Icon(Icons.add)),
+        onPressed:tab==3?addCalendarEntry:()=>_add(tab==1?'teachers':tab==5?'classes':'grades'),child:const Icon(Icons.add)),
       bottomNavigationBar:wide?null:NavigationBar(selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:nav),
     );
   }
