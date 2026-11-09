@@ -170,11 +170,15 @@ class _PlannerState extends State<Planner> {
       }
       return result;
     }
+    final mergedClasses=merge(classes,d['classes'] as List? ?? []);
+    final mergedTeachers=merge(teachers,d['teachers'] as List? ?? []);
+    final mergedExams=merge(exams,d['exams'] as List? ?? []);
+    final mergedGrades=merge(grades,d['grades'] as List? ?? []);
     setState((){
-      classes..clear()..addAll(merge([],d['classes'] as List? ?? []));
-      teachers..clear()..addAll(merge([],d['teachers'] as List? ?? []));
-      exams..clear()..addAll(merge([],d['exams'] as List? ?? []));
-      grades..clear()..addAll(merge([],d['grades'] as List? ?? []));
+      classes..clear()..addAll(mergedClasses);
+      teachers..clear()..addAll(mergedTeachers);
+      exams..clear()..addAll(mergedExams);
+      grades..clear()..addAll(mergedGrades);
       criterion=d['criterion']??criterion;
     });
     await _save();
