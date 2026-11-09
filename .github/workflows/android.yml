@@ -75,7 +75,8 @@ jobs:
           s = p.read_text()
           permission = '    <uses-permission android:name="android.permission.CAMERA" />\\n'
           if permission.strip() not in s:
-              s = s.replace("<application", permission + "    <application", 1)
+              s = s.replace('<application', permission + '\n    <application', 1)
+          if 'android:usesCleartextTraffic' not in s:
               s = s.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
           p.write_text(s)
           PY
