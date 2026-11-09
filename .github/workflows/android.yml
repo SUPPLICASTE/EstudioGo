@@ -26,7 +26,7 @@ jobs:
           channel: stable
           cache: true
       - name: Generar proyecto Android limpio
-        run: flutter create --platforms=android --project-name=estudiogo .
+        run: flutter create --platforms=android --project-name=estudiogo --org com.supplicaste .
       - name: Configurar icono y permisos Android
         shell: bash
         run: |
@@ -135,8 +135,8 @@ jobs:
       - name: Publicar aplicación descargable en Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v2.0"
-          name: "EstudioGo 2.0"
+          tag_name: "v2.1"
+          name: "EstudioGo 2.1"
           target_commitish: main
           files: EstudioGo.apk
           overwrite_files: true
