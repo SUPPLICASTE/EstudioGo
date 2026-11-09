@@ -440,7 +440,7 @@ class _PlannerState extends State<Planner> {
       Row(children:[
         const Expanded(child:Text('Calendario',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold))),
         IconButton(visualDensity:VisualDensity.compact,onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month-1)),icon:const Icon(Icons.chevron_left)),
-        Text(DateFormat('MMM yyyy','es').format(calendarMonth),style:const TextStyle(fontWeight:FontWeight.w600)),
+        Text('${['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][calendarMonth.month-1]} ${calendarMonth.year}',style:const TextStyle(fontWeight:FontWeight.w600)),
         IconButton(visualDensity:VisualDensity.compact,onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month+1)),icon:const Icon(Icons.chevron_right)),
         TextButton(onPressed:()=>setState(()=>tab=3),child:const Text('Abrir')),
       ]),
