@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'sync_service_stub.dart' if (dart.library.io) 'sync_service_io.dart';
 
 const blue = Color(0xFF2563EB);
 final notifications = FlutterLocalNotificationsPlugin();
@@ -159,19 +160,50 @@ class _PlannerState extends State<Planner> {
     if (v != null) { setState(() => criterion = v); await _save(); }
   }
   String _export() => jsonEncode({'app':'EstudioGo','classes':classes,'teachers':teachers,'exams':exams,'grades':grades,'criterion':criterion});
+  Future<void> _importSnapshot(String raw) async {
+    final d=jsonDecode(raw) as Map<String,dynamic>;
+    if(d['app']!='EstudioGo') throw const FormatException('Copia no válida');
+    List<Map<String,dynamic>> merge(List<Map<String,dynamic>> current,List<dynamic> incoming) {
+      final result=[...current];
+      for(final item in incoming.cast<Map<String,dynamic>>()) {
+        if(!result.any((old)=>jsonEncode(old)==jsonEncode(item))) result.add(item);
+      }
+      return result;
+    }
+    setState((){
+      classes..clear()..addAll(merge([],d['classes'] as List? ?? []));
+      teachers..clear()..addAll(merge([],d['teachers'] as List? ?? []));
+      exams..clear()..addAll(merge([],d['exams'] as List? ?? []));
+      grades..clear()..addAll(merge([],d['grades'] as List? ?? []));
+      criterion=d['criterion']??criterion;
+    });
+    await _save();
+  }
   Future<void> _scan() async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => ScanPage(onRead: (raw) async {
-      final d = jsonDecode(raw) as Map<String,dynamic>;
-      if (d['app'] != 'EstudioGo') throw const FormatException();
-      setState(() {
-        classes.addAll((d['classes'] as List? ?? []).cast<Map<String,dynamic>>());
-        teachers.addAll((d['teachers'] as List? ?? []).cast<Map<String,dynamic>>());
-        exams.addAll((d['exams'] as List? ?? []).cast<Map<String,dynamic>>());
-        grades.addAll((d['grades'] as List? ?? []).cast<Map<String,dynamic>>());
-        criterion = d['criterion'] ?? criterion;
-      });
-      await _save();
+    await Navigator.push(context,MaterialPageRoute(builder:(_)=>ScanPage(onRead:(raw) async {
+      if(raw.startsWith('http://') || raw.startsWith('https://')) {
+        final result=await joinWifiSync(raw,_export());
+        await _importSnapshot(result);
+      } else {
+        await _importSnapshot(raw);
+      }
     })));
+  }
+  Future<void> _startWifiSync() async {
+    try {
+      final address=await startWifiSync(_export, _importSnapshot);
+      if(!mounted) return;
+      await showDialog(context:context,builder:(_)=>AlertDialog(
+        title:const Text('Sincronización por Wi-Fi'),
+        content:SizedBox(width:260,child:Column(mainAxisSize:MainAxisSize.min,children:[
+          const Text('Mantén esta pantalla abierta. En el otro dispositivo, escanea este QR. Ambos deben estar conectados a la misma red Wi-Fi.'),
+          const SizedBox(height:12),QrImageView(data:address,size:210),
+          const SizedBox(height:8),SelectableText(address,style:const TextStyle(fontSize:11)),
+        ])),
+        actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cerrar'))]));
+    } catch(e) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('No se pudo iniciar la sincronización: $e')));
+    }
   }
   Future<void> _qr() => showDialog(context: context, builder: (_) => AlertDialog(
     title: const Text('Transferir datos con QR'),
@@ -277,7 +309,7 @@ class _PlannerState extends State<Planner> {
     ];
     return Scaffold(
       appBar:AppBar(title:const Row(children:[Icon(Icons.school,color:blue),SizedBox(width:8),Text('Estudio',style:TextStyle(fontWeight:FontWeight.bold)),Text('Go',style:TextStyle(color:blue,fontWeight:FontWeight.bold))]),
-        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2)),IconButton(onPressed:_settings,icon:const Icon(Icons.tune))]),
+        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(tooltip:'Sincronizar por Wi-Fi',onPressed:_startWifiSync,icon:const Icon(Icons.wifi)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2)),IconButton(onPressed:_settings,icon:const Icon(Icons.tune))]),
       body:wide?Row(children:[
         NavigationRail(selectedIndex:tab,labelType:NavigationRailLabelType.all,onDestinationSelected:(v)=>setState(()=>tab=v),
           destinations:const [
