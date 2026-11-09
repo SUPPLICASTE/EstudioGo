@@ -51,15 +51,38 @@ class _PlannerState extends State<Planner> {
 
   @override void initState() { super.initState(); _load(); }
   Future<void> _load() async {
-    final p = await SharedPreferences.getInstance();
-    void read(String key, List<Map<String,dynamic>> target) {
-      final raw = p.getString(key);
-      if (raw != null) target.addAll((jsonDecode(raw) as List).cast<Map<String,dynamic>>());
+    try {
+      final p = await SharedPreferences.getInstance();
+      void read(String key, List<Map<String,dynamic>> target) {
+        try {
+          final raw = p.getString(key);
+          if (raw == null || raw.isEmpty) return;
+          final decoded = jsonDecode(raw);
+          if (decoded is List) {
+            for (final item in decoded) {
+              if (item is Map) target.add(Map<String,dynamic>.from(item));
+            }
+          }
+        } catch (_) {
+          // Una sección dañada no debe impedir que se abra la aplicación.
+        }
+      }
+      read('classes', classes);
+      read('teachers', teachers);
+      read('exams', exams);
+      read('grades', grades);
+      criterion = p.getString('criterion') ?? criterion;
+    } catch (_) {
+      // Si el almacenamiento de Windows falla, abrir la app igualmente.
     }
-    read('classes', classes); read('teachers', teachers); read('exams', exams); read('grades', grades);
-    criterion = p.getString('criterion') ?? criterion;
-    try { await initNotifications(); await _scheduleExamReminders(); } catch (_) {}
-    if (mounted) setState(() => loading = false);
+    try {
+      await initNotifications();
+      await _scheduleExamReminders();
+    } catch (_) {
+      // Las notificaciones pueden no estar disponibles en Windows/web.
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
   Future<void> _scheduleExamReminders() async {
     await notifications.cancelAll();
