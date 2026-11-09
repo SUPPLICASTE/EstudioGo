@@ -22,6 +22,25 @@ jobs:
           channel: stable
       - name: Generate Android and web projects
         run: flutter create --platforms=android,web --project-name=estudiogo .
+      - name: Enable Java core library desugaring for notifications
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/build.gradle.kts")
+          s = p.read_text()
+          s = s.replace(
+              'compileOptions {',
+              'compileOptions {\\n        isCoreLibraryDesugaringEnabled = true',
+              1
+          )
+          if 'coreLibraryDesugaring(' not in s:
+              s = s.replace(
+                  'dependencies {',
+                  'dependencies {\\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")',
+                  1
+              )
+          p.write_text(s)
+          PY
       - name: Apply EstudioGo Android launcher icon
         run: |
           mkdir -p android/app/src/main/res/drawable
