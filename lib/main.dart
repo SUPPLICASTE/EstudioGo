@@ -8,18 +8,24 @@ import 'package:intl/intl.dart';
 const blue = Color(0xFF2563EB);
 void main() => runApp(const EstudioGo());
 
-class EstudioGo extends StatelessWidget {
+class EstudioGo extends StatefulWidget {
   const EstudioGo({super.key});
-  @override
-  Widget build(BuildContext context) => MaterialApp(
+  @override State<EstudioGo> createState() => _EstudioGoState();
+}
+class _EstudioGoState extends State<EstudioGo> {
+  bool dark = false;
+  @override Widget build(BuildContext context) => MaterialApp(
     title: 'EstudioGo', debugShowCheckedModeBanner: false,
-    theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: blue),
-      scaffoldBackgroundColor: const Color(0xFFF6F8FC)),
-    home: const Planner());
+    theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: blue), scaffoldBackgroundColor: const Color(0xFFF6F8FC)),
+    darkTheme: ThemeData(useMaterial3: true, brightness: Brightness.dark, colorScheme: ColorScheme.fromSeed(seedColor: blue, brightness: Brightness.dark)),
+    themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+    home: Planner(dark: dark, onThemeChanged: (v) => setState(() => dark = v)));
 }
 
 class Planner extends StatefulWidget {
-  const Planner({super.key});
+  final bool dark;
+  final ValueChanged<bool> onThemeChanged;
+  const Planner({super.key, required this.dark, required this.onThemeChanged});
   @override State<Planner> createState() => _PlannerState();
 }
 class _PlannerState extends State<Planner> {
@@ -115,7 +121,13 @@ class _PlannerState extends State<Planner> {
     });
     await _save();
   }
-  Future<void> _delete(List<Map<String,dynamic>> list, int i) async { setState(() => list.removeAt(i)); await _save(); }
+  Future<void> _delete(List<Map<String,dynamic>> list, int i) async {
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('¿Eliminar elemento?'), content: const Text('Esta acción no se puede deshacer.'),
+      actions: [TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Eliminar'))]));
+    if (ok != true) return;
+    setState(() => list.removeAt(i)); await _save();
+  }
   Future<void> _settings() async {
     final v = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
       title: const Text('Criterio de evaluación'),
@@ -173,6 +185,17 @@ class _PlannerState extends State<Planner> {
     }))
   ]);
 
+  Widget _statistics() {
+    final subjects=classes.map((c)=>c['name'].toString()).toList();
+    if(subjects.isEmpty) return const Center(child:Text('Añade asignaturas para ver sus estadísticas.'));
+    return ListView(padding:const EdgeInsets.all(16),children:[
+      const Text('Estadísticas por asignatura',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
+      const SizedBox(height:12),
+      ...subjects.map((subject){final a=_average(subject); final count=grades.where((g)=>g['subject']==subject).length; final v=(a??0).clamp(0,10).toDouble(); return Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Expanded(child:Text(subject,style:const TextStyle(fontWeight:FontWeight.bold))),Text(a==null?'Sin notas':'${a.toStringAsFixed(2)}/10')]),const SizedBox(height:8),LinearProgressIndicator(value:v/10,minHeight:8),const SizedBox(height:6),Text('$count ${count==1?'nota':'notas'} registradas')])));}),
+      const SizedBox(height:12),_tile('Media global',_average()==null?'Sin notas':'${_average()!.toStringAsFixed(2)} / 10',Icons.auto_graph),
+    ]);
+  }
+
   Widget _dashboard() {
     final avg=_average();
     final upcoming=exams.toList()..sort((a,b)=>DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
@@ -200,7 +223,7 @@ class _PlannerState extends State<Planner> {
   @override Widget build(BuildContext context) {
     if (loading) return const Scaffold(body:Center(child:CircularProgressIndicator()));
     final wide=MediaQuery.sizeOf(context).width>=760;
-    final views=[_dashboard(),_list(classes,'classes',Icons.menu_book),_list(teachers,'teachers',Icons.person),_list(exams,'exams',Icons.event),_list(grades,'grades',Icons.grade),_calendar()];
+    final views=[_dashboard(),_list(classes,'classes',Icons.menu_book),_list(teachers,'teachers',Icons.person),_list(exams,'exams',Icons.event),_list(grades,'grades',Icons.grade),_calendar(),_statistics()];
     const nav=[
       NavigationDestination(icon:Icon(Icons.home_outlined),label:'Inicio'),
       NavigationDestination(icon:Icon(Icons.menu_book),label:'Clases'),
@@ -208,10 +231,11 @@ class _PlannerState extends State<Planner> {
       NavigationDestination(icon:Icon(Icons.event),label:'Exámenes'),
       NavigationDestination(icon:Icon(Icons.grade),label:'Notas'),
       NavigationDestination(icon:Icon(Icons.calendar_month),label:'Calendario'),
+      NavigationDestination(icon:Icon(Icons.query_stats),label:'Estadísticas'),
     ];
     return Scaffold(
       appBar:AppBar(title:const Row(children:[Icon(Icons.school,color:blue),SizedBox(width:8),Text('Estudio',style:TextStyle(fontWeight:FontWeight.bold)),Text('Go',style:TextStyle(color:blue,fontWeight:FontWeight.bold))]),
-        actions:[IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2)),IconButton(onPressed:_settings,icon:const Icon(Icons.tune))]),
+        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2)),IconButton(onPressed:_settings,icon:const Icon(Icons.tune))]),
       body:wide?Row(children:[
         NavigationRail(selectedIndex:tab,labelType:NavigationRailLabelType.all,onDestinationSelected:(v)=>setState(()=>tab=v),
           destinations:const [
@@ -220,10 +244,11 @@ class _PlannerState extends State<Planner> {
             NavigationRailDestination(icon:Icon(Icons.person),label:Text('Profesores')),
             NavigationRailDestination(icon:Icon(Icons.event),label:Text('Exámenes')),
             NavigationRailDestination(icon:Icon(Icons.grade),label:Text('Notas')),
-            NavigationRailDestination(icon:Icon(Icons.calendar_month),label:Text('Calendario'))]),
+            NavigationRailDestination(icon:Icon(Icons.calendar_month),label:Text('Calendario')),
+            NavigationRailDestination(icon:Icon(Icons.query_stats),label:Text('Estadísticas'))]),
         const VerticalDivider(width:1),Expanded(child:views[tab])]):views[tab],
       floatingActionButton:tab==0?null:FloatingActionButton(backgroundColor:blue,foregroundColor:Colors.white,
-        onPressed:()=>_add(['','classes','teachers','exams','grades','exams'][tab]),child:const Icon(Icons.add)),
+        onPressed:()=>_add(['','classes','teachers','exams','grades','exams','classes'][tab]),child:const Icon(Icons.add)),
       bottomNavigationBar:wide?null:NavigationBar(selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:nav),
     );
   }
