@@ -29,11 +29,16 @@ jobs:
           p = Path("android/app/build.gradle.kts")
           s = p.read_text()
           if "isCoreLibraryDesugaringEnabled" not in s:
-              s = s.replace("compileOptions {", "compileOptions {\\n        isCoreLibraryDesugaringEnabled = true", 1)
-          dep = 'dependencies {\\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\\n}'
+              s = s.replace(
+                  "compileOptions {",
+                  "compileOptions {\n        isCoreLibraryDesugaringEnabled = true",
+                  1
+              )
+          dep = 'dependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}'
           if "desugar_jdk_libs" not in s:
-              s += "\\n\\n" + dep + "\\n"
+              s += "\n\n" + dep + "\n"
           p.write_text(s)
+          print("Gradle configurado correctamente")
           print(s)
           PY
       - name: Apply EstudioGo Android launcher icon
