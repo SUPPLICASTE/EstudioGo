@@ -76,7 +76,8 @@ jobs:
           permission = '    <uses-permission android:name="android.permission.CAMERA" />\\n'
           if permission.strip() not in s:
               s = s.replace("<application", permission + "    <application", 1)
-              p.write_text(s)
+              s = s.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
+          p.write_text(s)
           PY
       - run: flutter pub get
       - name: Build APK
