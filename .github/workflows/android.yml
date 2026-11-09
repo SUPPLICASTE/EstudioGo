@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   apk:
@@ -130,3 +130,12 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
+      - name: Publicar APK descargable en Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "1"
+          name: "EstudioGo 2.0"
+          target_commitish: main
+          files: build/app/outputs/flutter-apk/app-release.apk
+          overwrite_files: true
+          make_latest: true
