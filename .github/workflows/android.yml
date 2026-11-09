@@ -95,13 +95,9 @@ jobs:
           gradle = root.read_text()
           force_sdk = """
           subprojects {
-              afterEvaluate {
+              plugins.withId("com.android.library") {
                   extensions.findByName("android")?.let { androidExtension ->
-                      try {
-                          androidExtension.javaClass.getMethod("setCompileSdkVersion", Int::class.javaPrimitiveType).invoke(androidExtension, 36)
-                      } catch (ignored: Exception) {
-                          androidExtension.javaClass.getMethod("compileSdkVersion", Int::class.javaPrimitiveType).invoke(androidExtension, 36)
-                      }
+                      androidExtension.javaClass.getMethod("setCompileSdk", Int::class.javaPrimitiveType).invoke(androidExtension, 36)
                   }
               }
           }
