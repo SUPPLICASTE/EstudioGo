@@ -255,7 +255,7 @@ class _PlannerState extends State<Planner> {
         IconButton(onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month+1)),icon:const Icon(Icons.chevron_right)),
         TextButton(onPressed:()=>setState((){selectedDay=DateTime.now();calendarMonth=DateTime(selectedDay.year,selectedDay.month);}),child:const Text('Hoy'))
       ])),
-      const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:Row(children:['L','M','X','J','V','S','D'].map((d)=>Expanded(child:Center(child:Text(d,style:TextStyle(fontWeight:FontWeight.bold,color:Colors.grey))))).toList())),
+      Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:['L','M','X','J','V','S','D'].map((d)=>Expanded(child:Center(child:Text(d,style:const TextStyle(fontWeight:FontWeight.bold,color:Colors.grey))))).toList())),
       Padding(padding:const EdgeInsets.all(8),child:GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:7,childAspectRatio:1.15,children:cells)),
       const Divider(),
       Padding(padding:const EdgeInsets.symmetric(horizontal:16,vertical:8),child:Align(alignment:Alignment.centerLeft,child:Text('Exámenes · ${DateFormat('dd/MM/yyyy').format(selectedDay)}',style:const TextStyle(fontWeight:FontWeight.bold)))),
