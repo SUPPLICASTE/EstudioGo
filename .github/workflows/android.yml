@@ -90,6 +90,24 @@ jobs:
           if "desugar_jdk_libs" not in s:
               s += '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
           p.write_text(s)
+          # Aplicar compileSdk 36 también a los módulos Android de plugins Flutter.
+          root = Path("android/build.gradle.kts")
+          gradle = root.read_text()
+          force_sdk = """
+          subprojects {
+              afterEvaluate {
+                  extensions.findByName("android")?.let { androidExtension ->
+                      try {
+                          androidExtension.javaClass.getMethod("setCompileSdkVersion", Int::class.javaPrimitiveType).invoke(androidExtension, 36)
+                      } catch (ignored: Exception) {
+                          androidExtension.javaClass.getMethod("compileSdkVersion", Int::class.javaPrimitiveType).invoke(androidExtension, 36)
+                      }
+                  }
+              }
+          }
+          """
+          if "setCompileSdkVersion" not in gradle:
+              root.write_text(gradle + "\\n" + force_sdk)
           PY
       - name: Descargar dependencias
         run: flutter pub get
