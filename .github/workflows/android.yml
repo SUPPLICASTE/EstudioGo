@@ -94,7 +94,7 @@ jobs:
           settings = Path("android/settings.gradle.kts")
           settings_text = settings.read_text()
           import re
-          settings_text, changed = re.subn(r'(id\("com\.android\.application"\)\s+version\s+)"[^"]+"', r'\g<1>"8.9.1"', settings_text, count=1)
+          settings_text, changed = re.subn(r'(id\("com\.android\.application"\)\s+version\s+)"[^"]+"', r'\g<1>"8.11.1"', settings_text, count=1)
           if changed == 0:
               raise RuntimeError("No se pudo fijar Android Gradle Plugin 8.9.1")
           settings.write_text(settings_text)
