@@ -355,7 +355,7 @@ class _PlannerState extends State<Planner> {
     return Column(children:[
       Padding(padding:const EdgeInsets.fromLTRB(16,8,16,0),child:Row(children:[
         IconButton(onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month-1)),icon:const Icon(Icons.chevron_left)),
-        Expanded(child:Center(child:Text(DateFormat('MMMM yyyy','es').format(calendarMonth),style:const TextStyle(fontSize:18,fontWeight:FontWeight.bold)))),
+        Expanded(child:Center(child:Text('${['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][calendarMonth.month-1]} ${calendarMonth.year}',style:const TextStyle(fontSize:18,fontWeight:FontWeight.bold)))),
         IconButton(onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month+1)),icon:const Icon(Icons.chevron_right)),
         TextButton(onPressed:()=>setState((){selectedDay=DateTime.now();calendarMonth=DateTime(selectedDay.year,selectedDay.month);}),child:const Text('Hoy'))
       ])),
