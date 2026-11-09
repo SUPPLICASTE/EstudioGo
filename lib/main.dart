@@ -67,7 +67,9 @@ class _PlannerState extends State<Planner> {
   Future<void> _add(String kind, [int? editIndex]) async {
     final target = kind == 'classes' ? classes : kind == 'teachers' ? teachers : kind == 'exams' ? exams : grades;
     final old = editIndex == null ? null : target[editIndex];
-    final name = TextEditingController(text: old?['name']?.toString() ?? ''), extra = TextEditingController(text: kind == 'teachers' ? old?['contact']?.toString() ?? '' : kind == 'grades' ? old?['weight']?.toString() ?? '' : ''), val = TextEditingController(text: old?['value']?.toString() ?? '');
+    final name = TextEditingController(text: old == null ? '' : old['name']?.toString() ?? '');
+    final extra = TextEditingController(text: old == null ? '' : kind == 'teachers' ? old['contact']?.toString() ?? '' : kind == 'grades' ? old['weight']?.toString() ?? '' : '');
+    final val = TextEditingController(text: old == null ? '' : old['value']?.toString() ?? '');
     String? subject = old?['subject']?.toString();
     DateTime date = old?['date'] == null ? DateTime.now() : DateTime.parse(old!['date']);
     final isTeacher = kind == 'teachers', isExam = kind == 'exams', isGrade = kind == 'grades';
