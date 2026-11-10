@@ -25,6 +25,15 @@ jobs:
       - name: Activar soporte Windows
         run: flutter create --platforms=windows --project-name=estudiogo --org com.supplicaste .
 
+      - name: Compatibilidad con el compilador C++ de Windows
+        shell: pwsh
+        run: |
+          $cmakeFile = "windows/CMakeLists.txt"
+          $content = Get-Content $cmakeFile -Raw
+          if ($content -notmatch "_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS") {
+            Add-Content -Path $cmakeFile -Value "`nadd_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)"
+          }
+
       - name: Descargar dependencias
         run: flutter pub get
 
