@@ -32,12 +32,14 @@ jobs:
         run: |
           mkdir -p android/app/src/main/res/drawable
           cat > android/app/src/main/res/drawable/estudiogo_icon.xml <<'EOF'
-          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-            <path android:fillColor="#123B8A" android:pathData="M0,0h108v108h-108z"/>
-            <path android:fillColor="#FFFFFF" android:pathData="M18,30c0,-5 4,-9 9,-9h22c8,0 14,3 19,8 5,-5 11,-8 19,-8h3c5,0 9,4 9,9v48c0,5 -4,9 -9,9h-3c-8,0 -14,-3 -19,-8 -5,5 -11,8 -19,8h-22c-5,0 -9,-4 -9,-9z"/>
-            <path android:fillColor="#2563EB" android:pathData="M49,29h8v49h-8z"/>
-            <path android:fillColor="#FBBF24" android:pathData="M74,13l4,8 9,1 -7,6 2,9 -8,-5 -8,5 2,-9 -7,-6 9,-1z"/>
-            <path android:fillColor="#16A34A" android:pathData="M65,58l7,7 14,-16 6,6 -20,22 -13,-13z"/>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp"
+              android:viewportWidth="512" android:viewportHeight="512">
+              <path android:fillColor="#2563EB" android:pathData="M112,0h288c62,0 112,50 112,112v288c0,62 -50,112 -112,112h-288c-62,0 -112,-50 -112,-112v-288c0,-62 50,-112 112,-112z"/>
+              <path android:fillColor="#FFFFFF" android:pathData="M92,142c54,-22 116,-18 164,12v226c-48,-30 -110,-34 -164,-12z"/>
+              <path android:fillColor="#FFFFFF" android:pathData="M420,142c-54,-22 -116,-18 -164,12v226c48,-30 110,-34 164,-12z"/>
+              <path android:fillColor="#2563EB" android:pathData="M244,160h24v220h-24z"/>
+              <path android:fillColor="#2563EB" android:pathData="M124,188h92v16h-92zM124,222h92v16h-92zM296,188h92v16h-92zM296,222h92v16h-92z"/>
           </vector>
           EOF
           python3 - <<'PY'
