@@ -1,0 +1,69 @@
+name: EstudioGo - Windows EXE
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Compilar aplicación Windows
+    runs-on: windows-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Activar soporte Windows
+        run: flutter create --platforms=windows --project-name=estudiogo --org com.supplicaste .
+
+      - name: Descargar dependencias
+        run: flutter pub get
+
+      - name: Analizar código
+        run: flutter analyze lib --no-pub --no-fatal-infos --no-fatal-warnings
+
+      - name: Compilar EXE
+        run: flutter build windows --release
+
+      - name: Preparar paquete portable
+        shell: pwsh
+        run: |
+          $source = "build/windows/x64/runner/Release"
+          if (!(Test-Path "$source/estudiogo.exe")) {
+            throw "No se ha generado estudiogo.exe"
+          }
+          New-Item -ItemType Directory -Force -Path "dist/EstudioGo-Windows" | Out-Null
+          Copy-Item "$source/*" "dist/EstudioGo-Windows/" -Recurse -Force
+          @"
+          EstudioGo para Windows
+          Ejecuta estudiogo.exe.
+          Mantén todos los archivos de esta carpeta juntos.
+          "@ | Set-Content "dist/EstudioGo-Windows/LEEME.txt"
+          Compress-Archive -Path "dist/EstudioGo-Windows/*" -DestinationPath "EstudioGo-Windows.zip" -Force
+
+      - name: Publicar paquete como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: EstudioGo-Windows
+          path: EstudioGo-Windows.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publicar versión Windows en GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v2.2
+          name: EstudioGo 2.2 - Windows
+          target_commitish: main
+          files: EstudioGo-Windows.zip
+          overwrite_files: true
+          make_latest: false
