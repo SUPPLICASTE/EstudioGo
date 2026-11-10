@@ -151,8 +151,19 @@ class _PlannerState extends State<Planner> {
     final val = TextEditingController(text: old == null ? '' : old['value']?.toString() ?? '');
     String? subject = old?['subject']?.toString();
     DateTime date = old?['date'] == null ? DateTime.now() : DateTime.parse(old!['date']);
-    String? classDay = old?['day']?.toString();
-    String classTime = old?['time']?.toString() ?? '08:00';
+    final classSchedules = <Map<String,String>>[];
+    if (old != null && old['schedule'] is List) {
+      for (final entry in old['schedule']) {
+        if (entry is Map) classSchedules.add({
+          'day': entry['day']?.toString() ?? '',
+          'time': entry['time']?.toString() ?? '08:00',
+        });
+      }
+    } else if (old != null && (old['day']?.toString().isNotEmpty ?? false)) {
+      // Compatibilidad con asignaturas creadas en versiones anteriores.
+      classSchedules.add({'day': old['day'].toString(), 'time': old['time']?.toString() ?? '08:00'});
+    }
+    if (kind == 'classes' && classSchedules.isEmpty) classSchedules.add({'day':'', 'time':'08:00'});
     String? classTeacher = old?['teacher']?.toString();
     final isTeacher = kind == 'teachers', isExam = kind == 'exams', isGrade = kind == 'grades';
     final result = await showDialog<Map<String,dynamic>>(context: context,
@@ -162,25 +173,37 @@ class _PlannerState extends State<Planner> {
           TextField(controller: name, decoration: InputDecoration(labelText: isGrade ? 'Descripción' : isExam ? 'Nombre del examen' : isTeacher ? 'Nombre del profesor' : 'Asignatura')),
           if (isTeacher) TextField(controller: extra, decoration: const InputDecoration(labelText: 'Correo o contacto')),
           if (kind == 'classes') ...[
-            DropdownButtonFormField<String>(
-              initialValue: classDay,
-              decoration: const InputDecoration(labelText: 'Día de la semana'),
-              items: ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((d) => DropdownMenuItem(value:d, child:Text(d))).toList(),
-              onChanged: (v) => refresh(() => classDay = v)),
+            const Align(alignment:Alignment.centerLeft,child:Text('Días y horarios',style:TextStyle(fontWeight:FontWeight.w600))),
+            ...classSchedules.asMap().entries.map((entry) {
+              final index = entry.key;
+              final slot = entry.value;
+              final currentDay = slot['day']!.isEmpty ? null : slot['day'];
+              return Padding(padding:const EdgeInsets.only(top:8),child:Row(children:[
+                Expanded(flex:3,child:DropdownButtonFormField<String>(
+                  initialValue:currentDay,
+                  isExpanded:true,
+                  decoration:const InputDecoration(labelText:'Día'),
+                  items:['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((d)=>DropdownMenuItem(value:d,child:Text(d))).toList(),
+                  onChanged:(v)=>refresh(() { if(v!=null) slot['day']=v; }))),
+                const SizedBox(width:8),
+                Expanded(flex:2,child:OutlinedButton(
+                  onPressed:() async {
+                    final parts=slot['time']!.split(':');
+                    final picked=await showTimePicker(context:ctx,initialTime:TimeOfDay(hour:int.tryParse(parts[0])??8,minute:int.tryParse(parts.length>1?parts[1]:'0')??0));
+                    if(picked!=null) refresh(()=>slot['time']='${picked.hour.toString().padLeft(2,'0')}:${picked.minute.toString().padLeft(2,'0')}');
+                  },
+                  child:Text(slot['time']!))),
+                IconButton(tooltip:'Quitar horario',onPressed:()=>refresh(()=>classSchedules.removeAt(index)),icon:const Icon(Icons.remove_circle_outline)),
+              ]));
+            }),
+            Align(alignment:Alignment.centerLeft,child:TextButton.icon(
+              onPressed:()=>refresh(()=>classSchedules.add({'day':'','time':'08:00'})),
+              icon:const Icon(Icons.add),label:const Text('Añadir otro día'))),
             DropdownButtonFormField<String>(
               initialValue: classTeacher,
               decoration: const InputDecoration(labelText: 'Profesor'),
               items: teachers.map((t) => DropdownMenuItem(value:t['name'].toString(), child:Text(t['name'].toString()))).toList(),
               onChanged: (v) => refresh(() => classTeacher = v)),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final picked = await showTimePicker(context:ctx, initialTime:TimeOfDay(
-                  hour:int.tryParse(classTime.split(':')[0]) ?? 8,
-                  minute:int.tryParse(classTime.split(':').length > 1 ? classTime.split(':')[1] : '0') ?? 0));
-                if (picked != null) refresh(() => classTime = '${picked.hour.toString().padLeft(2,'0')}:${picked.minute.toString().padLeft(2,'0')}');
-              },
-              icon:const Icon(Icons.access_time),
-              label:Text('Hora: $classTime')),
           ],
           if (isExam || isGrade) DropdownButtonFormField<String>(
             initialValue: subject,
@@ -203,7 +226,12 @@ class _PlannerState extends State<Planner> {
             if (name.text.trim().isEmpty || ((isExam || isGrade) && subject == null)) return;
             final item = <String,dynamic>{'name': name.text.trim()};
             if (isTeacher) item['contact'] = extra.text;
-            if (kind == 'classes') item.addAll({'day':classDay ?? '', 'time':classTime, 'teacher':classTeacher ?? ''});
+            if (kind == 'classes') {
+              final validSchedules = classSchedules.where((slot)=>slot['day']!.isNotEmpty).toList();
+              final usedDays = validSchedules.map((slot)=>slot['day']).toSet();
+              if (validSchedules.isEmpty || usedDays.length != validSchedules.length) return;
+              item.addAll({'schedule':validSchedules,'day':validSchedules.first['day'],'time':validSchedules.first['time'],'teacher':classTeacher ?? ''});
+            }
             if (isExam) item.addAll({'subject':subject,'date':date.toIso8601String()});
             if (isGrade) {
               final n = double.tryParse(val.text.replaceAll(',', '.'));
@@ -331,7 +359,10 @@ class _PlannerState extends State<Planner> {
       final x=data[i];
       String sub='Asignatura';
       if (kind=='teachers') sub=x['contact'] ?? 'Profesor';
-      if (kind=='classes') sub=[x['day'],x['time'],x['teacher']].where((v)=>v!=null && v.toString().isNotEmpty).join(' · ');
+      if (kind=='classes') {
+        final slots = _classSchedules(x);
+        sub = [...slots.map((slot)=>'${slot['day']} ${slot['time']}'), if ((x['teacher']?.toString().isNotEmpty ?? false)) x['teacher'].toString()].join(' · ');
+      }
       if (kind=='grades') sub=x['subject']+' · '+(x['value'] as num).toStringAsFixed(2)+'/10';
       if (kind=='exams') sub=x['subject']+' · '+DateFormat('dd/MM/yyyy').format(DateTime.parse(x['date']));
       return _tile(x['name'],sub,icon,onTap:()=>_add(kind,i),trailing:Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Editar',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add(kind,i)),IconButton(tooltip:'Eliminar',icon:const Icon(Icons.delete_outline),onPressed:()=>_delete(data,i))]));
@@ -345,6 +376,12 @@ class _PlannerState extends State<Planner> {
     'Viernes': DateTime.friday, 'Sábado': DateTime.saturday,
     'Domingo': DateTime.sunday,
   }[day] ?? 0;
+  List<Map<String,String>> _classSchedules(Map<String,dynamic> item) {
+    final raw = item['schedule'];
+    if (raw is List) return raw.whereType<Map>().map((slot)=>{'day':slot['day']?.toString()??'','time':slot['time']?.toString()??'08:00'}).toList();
+    if ((item['day']?.toString().isNotEmpty ?? false)) return [{'day':item['day'].toString(),'time':item['time']?.toString()??'08:00'}];
+    return [];
+  }
 
   Widget _calendar() {
     final firstWeekday = DateTime(calendarMonth.year, calendarMonth.month, 1).weekday;
@@ -354,7 +391,7 @@ class _PlannerState extends State<Planner> {
     for (int day=1; day<=days; day++) {
       final date=DateTime(calendarMonth.year,calendarMonth.month,day);
       final hasExam=exams.any((e){final d=DateTime.parse(e['date']);return d.year==date.year&&d.month==date.month&&d.day==date.day;});
-      final hasClass=classes.any((c)=>_weekdayNumber(c['day']?.toString())==date.weekday);
+      final hasClass=classes.any((c)=>_classSchedules(c).any((slot)=>_weekdayNumber(slot['day'])==date.weekday));
       final selected=date.year==selectedDay.year&&date.month==selectedDay.month&&date.day==selectedDay.day;
       cells.add(InkWell(borderRadius:BorderRadius.circular(30),onTap:()=>setState(()=>selectedDay=date),child:Container(
         margin:const EdgeInsets.all(3),decoration:BoxDecoration(color:selected?blue.withOpacity(.16):null,border:selected?Border.all(color:blue):null,shape:BoxShape.circle),
@@ -368,7 +405,7 @@ class _PlannerState extends State<Planner> {
     }
     final dayClasses=<Map<String,dynamic>>[];
     for(int i=0;i<classes.length;i++) {
-      if(_weekdayNumber(classes[i]['day']?.toString())==selectedDay.weekday) dayClasses.add(classes[i]);
+      if(_classSchedules(classes[i]).any((slot)=>_weekdayNumber(slot['day'])==selectedDay.weekday)) dayClasses.add(classes[i]);
     }
     final dayExams=<Map<String,dynamic>>[];
     for(final e in exams) {
@@ -394,7 +431,8 @@ class _PlannerState extends State<Planner> {
         if(dayClasses.isEmpty && dayExams.isEmpty) const Padding(padding:EdgeInsets.all(24),child:Center(child:Text('No hay clases ni exámenes para este día.'))),
         ...dayClasses.map((c){
           final i=classes.indexOf(c);
-          final detail=[c['time'],c['teacher']].where((v)=>v!=null&&v.toString().isNotEmpty).join(' · ');
+          final slot=_classSchedules(c).firstWhere((slot)=>_weekdayNumber(slot['day'])==selectedDay.weekday,orElse:()=>{'time':''});
+          final detail=[slot['time'],c['teacher']].where((v)=>v!=null&&v.toString().isNotEmpty).join(' · ');
           return _tile(c['name'],'Clase · $detail',Icons.menu_book,onTap:()=>_add('classes',i),trailing:Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Editar clase',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add('classes',i)),IconButton(tooltip:'Eliminar clase',icon:const Icon(Icons.delete_outline),onPressed:()=>_delete(classes,i))]));
         }),
         ...dayExams.map((e){
