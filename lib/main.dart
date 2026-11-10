@@ -342,14 +342,6 @@ class _PlannerState extends State<Planner> {
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('No se pudo iniciar la sincronización: $e')));
     }
   }
-  Future<void> _qr() => showDialog(context: context, builder: (_) => AlertDialog(
-    title: const Text('Transferir datos con QR'),
-    content: SizedBox(width: 260, child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Text('Escanea este código desde otro dispositivo EstudioGo.'),
-      QrImageView(data: _export(), size: 220),
-      const Text('El QR contiene una copia de tus datos.', style: TextStyle(fontSize: 12)),
-    ])),
-    actions: [TextButton(onPressed:()=>Navigator.pop(context), child:const Text('Cerrar'))]));
 
   Widget _tile(String title, String subtitle, IconData icon, {VoidCallback? onTap, Widget? trailing}) =>
     Card(child: ListTile(leading: CircleAvatar(backgroundColor:blue.withOpacity(.1),child:Icon(icon,color:blue)),
@@ -547,7 +539,7 @@ class _PlannerState extends State<Planner> {
         EstudioGoMark(size:30),SizedBox(width:9),
         Text('Estudio',style:TextStyle(fontWeight:FontWeight.bold)),Text('Go',style:TextStyle(color:blue,fontWeight:FontWeight.bold))
       ]),
-        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(tooltip:'Sincronizar por Wi-Fi',onPressed:_startWifiSync,icon:const Icon(Icons.wifi)),IconButton(onPressed:_scan,icon:const Icon(Icons.qr_code_scanner)),IconButton(onPressed:_qr,icon:const Icon(Icons.qr_code_2))]),
+        actions:[IconButton(tooltip:'Tema oscuro',onPressed:()=>widget.onThemeChanged(!widget.dark),icon:Icon(widget.dark?Icons.light_mode:Icons.dark_mode)),IconButton(tooltip:'Sincronizar por Wi-Fi',onPressed:_startWifiSync,icon:const Icon(Icons.wifi)),IconButton(tooltip:'Escanear QR Wi-Fi',onPressed:_scan,icon:const Icon(Icons.qr_code_scanner))]),
       body:wide?Row(children:[
         NavigationRail(selectedIndex:tab,labelType:NavigationRailLabelType.all,onDestinationSelected:(v)=>setState(()=>tab=v),
           destinations:const [
