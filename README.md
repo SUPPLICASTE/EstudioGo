@@ -16,7 +16,7 @@
 
 ## Descargar
 - **Android (APK):** [EstudioGo 2.1](https://github.com/SUPPLICASTE/EstudioGo/releases/tag/v2.1)
-- **Windows:** [EstudioGo 2.2](https://github.com/SUPPLICASTE/EstudioGo/releases/tag/v2.2) (paquete ZIP portable; descomprimir y ejecutar `estudiogo.exe`).
+- **Windows:** [EstudioGo 2.2](https://github.com/SUPPLICASTE/EstudioGo/releases/tag/v2.2) (instalador único `.exe`; no hace falta descomprimir ni manejar archivos adicionales).
 
 También puedes consultar las compilaciones en la pestaña **Actions**.
 
