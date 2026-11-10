@@ -346,20 +346,46 @@ class _PlannerState extends State<Planner> {
   Widget _tile(String title, String subtitle, IconData icon, {VoidCallback? onTap, Widget? trailing}) =>
     Card(child: ListTile(leading: CircleAvatar(backgroundColor:blue.withOpacity(.1),child:Icon(icon,color:blue)),
       title:Text(title),subtitle:Text(subtitle),trailing:trailing,onTap:onTap));
+  int _minutesOfDay(String? value) {
+    final parts=(value ?? '23:59').split(':');
+    final hour=int.tryParse(parts.isNotEmpty?parts[0]:'') ?? 23;
+    final minute=int.tryParse(parts.length>1?parts[1]:'') ?? 59;
+    return hour*60+minute;
+  }
   Widget _list(List<Map<String,dynamic>> data, String kind, IconData icon) {
     if (data.isEmpty) return const Center(child: Text('Aún no hay elementos. Pulsa + para añadir el primero.'));
-    return ListView(padding:const EdgeInsets.all(16),children:List.generate(data.length,(i) {
+    final order=List<int>.generate(data.length,(i)=>i);
+    if(kind=='classes') {
+      order.sort((a,b) {
+        final sa=_classSchedules(data[a])..sort((x,y) {
+          final dayCompare=_weekdayNumber(x['day']).compareTo(_weekdayNumber(y['day']));
+          return dayCompare!=0?dayCompare:_minutesOfDay(x['time']).compareTo(_minutesOfDay(y['time']));
+        });
+        final sb=_classSchedules(data[b])..sort((x,y) {
+          final dayCompare=_weekdayNumber(x['day']).compareTo(_weekdayNumber(y['day']));
+          return dayCompare!=0?dayCompare:_minutesOfDay(x['time']).compareTo(_minutesOfDay(y['time']));
+        });
+        final da=sa.isEmpty?8:_weekdayNumber(sa.first['day']);
+        final db=sb.isEmpty?8:_weekdayNumber(sb.first['day']);
+        if(da!=db) return da.compareTo(db);
+        return _minutesOfDay(sa.isEmpty?null:sa.first['time']).compareTo(_minutesOfDay(sb.isEmpty?null:sb.first['time']));
+      });
+    }
+    return ListView(padding:const EdgeInsets.all(16),children:order.map((i) {
       final x=data[i];
       String sub='Asignatura';
       if (kind=='teachers') sub=x['contact'] ?? 'Profesor';
       if (kind=='classes') {
-        final slots = _classSchedules(x);
+        final slots = _classSchedules(x)..sort((a,b) {
+          final dayCompare=_weekdayNumber(a['day']).compareTo(_weekdayNumber(b['day']));
+          return dayCompare!=0?dayCompare:_minutesOfDay(a['time']).compareTo(_minutesOfDay(b['time']));
+        });
         sub = [...slots.map((slot)=>'${slot['day']} ${slot['time']}'), if ((x['teacher']?.toString().isNotEmpty ?? false)) x['teacher'].toString()].join(' · ');
       }
       if (kind=='grades') sub=x['subject']+' · '+(x['value'] as num).toStringAsFixed(2)+'/10';
       if (kind=='exams') sub=x['subject']+' · '+DateFormat('dd/MM/yyyy').format(DateTime.parse(x['date']));
       return _tile(x['name'],sub,icon,onTap:()=>_add(kind,i),trailing:Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Editar',icon:const Icon(Icons.edit_outlined),onPressed:()=>_add(kind,i)),IconButton(tooltip:'Eliminar',icon:const Icon(Icons.delete_outline),onPressed:()=>_delete(data,i))]));
-    }));
+    }).toList());
   }
   DateTime selectedDay = DateTime.now();
   DateTime calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
@@ -400,6 +426,11 @@ class _PlannerState extends State<Planner> {
     for(int i=0;i<classes.length;i++) {
       if(_classSchedules(classes[i]).any((slot)=>_weekdayNumber(slot['day'])==selectedDay.weekday)) dayClasses.add(classes[i]);
     }
+    dayClasses.sort((a,b) {
+      final ta=_classSchedules(a).where((slot)=>_weekdayNumber(slot['day'])==selectedDay.weekday).map((slot)=>_minutesOfDay(slot['time'])).fold<int>(24*60,(x,y)=>x<y?x:y);
+      final tb=_classSchedules(b).where((slot)=>_weekdayNumber(slot['day'])==selectedDay.weekday).map((slot)=>_minutesOfDay(slot['time'])).fold<int>(24*60,(x,y)=>x<y?x:y);
+      return ta.compareTo(tb);
+    });
     final dayExams=<Map<String,dynamic>>[];
     for(final e in exams) {
       final d=DateTime.parse(e['date']);
