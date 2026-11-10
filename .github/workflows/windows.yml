@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   windows:
-    name: Compilar aplicación Windows
+    name: Compilar instalador Windows
     runs-on: windows-latest
     steps:
       - name: Descargar código
@@ -37,27 +37,53 @@ jobs:
           $env:CL = "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
           flutter build windows --release
 
-      - name: Preparar paquete portable
+      - name: Instalar Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Crear instalador único EXE
         shell: pwsh
         run: |
           $source = "build/windows/x64/runner/Release"
           if (!(Test-Path "$source/estudiogo.exe")) {
             throw "No se ha generado estudiogo.exe"
           }
-          New-Item -ItemType Directory -Force -Path "dist/EstudioGo-Windows" | Out-Null
-          Copy-Item "$source/*" "dist/EstudioGo-Windows/" -Recurse -Force
-          @"
-          EstudioGo para Windows
-          Ejecuta estudiogo.exe.
-          Mantén todos los archivos de esta carpeta juntos.
-          "@ | Set-Content "dist/EstudioGo-Windows/LEEME.txt"
-          Compress-Archive -Path "dist/EstudioGo-Windows/*" -DestinationPath "EstudioGo-Windows.zip" -Force
+          @'
+          [Setup]
+          AppId={{A2F8BCA4-90D7-4F55-9D9E-202611100001}
+          AppName=EstudioGo
+          AppVersion=2.2
+          AppPublisher=SUPPLICASTE
+          DefaultDirName={localappdata}\Programs\EstudioGo
+          DefaultGroupName=EstudioGo
+          DisableProgramGroupPage=yes
+          PrivilegesRequired=lowest
+          OutputDir=.
+          OutputBaseFilename=EstudioGo-Instalador-Windows
+          Compression=lzma2
+          SolidCompression=yes
+          WizardStyle=modern
+          UninstallDisplayIcon={app}\estudiogo.exe
 
-      - name: Publicar paquete como artefacto
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{autoprograms}\EstudioGo"; Filename: "{app}\estudiogo.exe"
+          Name: "{autodesktop}\EstudioGo"; Filename: "{app}\estudiogo.exe"; Tasks: desktopicon
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Crear acceso directo en el escritorio"; GroupDescription: "Accesos directos:"
+          '@ | Set-Content -Path "estudiogo-installer.iss" -Encoding ASCII
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $compiler)) { throw "No se encuentra Inno Setup: $compiler" }
+          & $compiler "estudiogo-installer.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Falló la creación del instalador" }
+
+      - name: Publicar instalador como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: EstudioGo-Windows
-          path: EstudioGo-Windows.zip
+          name: EstudioGo-Instalador-Windows
+          path: EstudioGo-Instalador-Windows.exe
           if-no-files-found: error
           retention-days: 30
 
@@ -67,6 +93,6 @@ jobs:
           tag_name: v2.2
           name: EstudioGo 2.2 - Windows
           target_commitish: main
-          files: EstudioGo-Windows.zip
+          files: EstudioGo-Instalador-Windows.exe
           overwrite_files: true
           make_latest: false
