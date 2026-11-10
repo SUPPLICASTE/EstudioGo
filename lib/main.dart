@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -575,16 +576,56 @@ class ScanPage extends StatefulWidget {
 }
 class _ScanPageState extends State<ScanPage> {
   bool done=false;
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Escanear QR')),
-    body:Column(children:[
-      const Padding(padding:EdgeInsets.all(18),child:Text('Apunta la cámara al QR del otro dispositivo EstudioGo.')),
-      Expanded(child:MobileScanner(onDetect:(capture) async {
-        if(done || capture.barcodes.isEmpty) return;
-        final raw=capture.barcodes.first.rawValue;
-        if(raw==null) return;
-        done=true;
-        try { await widget.onRead(raw); if(mounted) Navigator.pop(context); }
-        catch (_) { done=false; if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Código QR no válido.'))); }
-      })),
-    ]));
+  final manualCode=TextEditingController();
+
+  @override
+  void dispose() {
+    manualCode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit(String raw) async {
+    if(done || raw.trim().isEmpty) return;
+    setState(()=>done=true);
+    try {
+      await widget.onRead(raw.trim());
+      if(mounted) Navigator.pop(context);
+    } catch(e) {
+      if(mounted) {
+        setState(()=>done=false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content:Text('No se pudo sincronizar: $e')),
+        );
+      }
+    }
+  }
+
+  @override Widget build(BuildContext context) {
+    final isWindows=defaultTargetPlatform==TargetPlatform.windows;
+    return Scaffold(
+      appBar:AppBar(title:const Text('Escanear QR')),
+      body:isWindows
+        ? ListView(padding:const EdgeInsets.all(24),children:[
+            const Icon(Icons.qr_code_scanner,size:64,color:blue),
+            const SizedBox(height:16),
+            const Text('En Windows no hay lector de cámara integrado. Para sincronizar, abre el QR en el PC y pega aquí la dirección que aparece debajo del código (empieza por http://).',
+              textAlign:TextAlign.center),
+            const SizedBox(height:18),
+            TextField(controller:manualCode,keyboardType:TextInputType.url,
+              decoration:const InputDecoration(labelText:'Dirección de sincronización',hintText:'http://192.168...:8787/sync?token=...',border:OutlineInputBorder())),
+            const SizedBox(height:12),
+            FilledButton.icon(onPressed:done?null:()=>_submit(manualCode.text),
+              icon:const Icon(Icons.sync),label:const Text('Conectar y sincronizar')),
+          ])
+        : Column(children:[
+            const Padding(padding:EdgeInsets.all(18),child:Text('Apunta la cámara al QR del otro dispositivo EstudioGo.')),
+            Expanded(child:MobileScanner(onDetect:(capture) async {
+              if(done || capture.barcodes.isEmpty) return;
+              final raw=capture.barcodes.first.rawValue;
+              if(raw==null) return;
+              await _submit(raw);
+            })),
+          ]),
+    );
+  }
 }
