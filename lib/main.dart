@@ -394,15 +394,15 @@ class _PlannerState extends State<Planner> {
       final hasExam=exams.any((e){final d=DateTime.parse(e['date']);return d.year==date.year&&d.month==date.month&&d.day==date.day;});
       final hasClass=classes.any((c)=>_classSchedules(c).any((slot)=>_weekdayNumber(slot['day'])==date.weekday));
       final selected=date.year==selectedDay.year&&date.month==selectedDay.month&&date.day==selectedDay.day;
-      cells.add(InkWell(borderRadius:BorderRadius.circular(30),onTap:()=>setState(()=>selectedDay=date),child:Container(
-        margin:const EdgeInsets.all(3),decoration:BoxDecoration(color:selected?blue.withOpacity(.16):null,border:selected?Border.all(color:blue):null,shape:BoxShape.circle),
-        child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-          Text('$day',style:TextStyle(fontWeight:selected?FontWeight.bold:FontWeight.normal)),
-          Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-            if(hasClass) Container(width:5,height:5,margin:const EdgeInsets.symmetric(horizontal:1),decoration:const BoxDecoration(color:Color(0xFF16A34A),shape:BoxShape.circle)),
-            if(hasExam) Container(width:5,height:5,margin:const EdgeInsets.symmetric(horizontal:1),decoration:const BoxDecoration(color:blue,shape:BoxShape.circle)),
+      cells.add(InkWell(borderRadius:BorderRadius.circular(22),onTap:()=>setState(()=>selectedDay=date),child:Center(child:SizedBox(width:38,height:38,child:Container(
+        decoration:BoxDecoration(color:selected?blue.withOpacity(.16):null,border:selected?Border.all(color:blue):null,shape:BoxShape.circle),
+        child:Column(mainAxisAlignment:MainAxisAlignment.center,mainAxisSize:MainAxisSize.min,children:[
+          Text('$day',style:TextStyle(fontSize:12,fontWeight:selected?FontWeight.bold:FontWeight.normal)),
+          Row(mainAxisAlignment:MainAxisAlignment.center,mainAxisSize:MainAxisSize.min,children:[
+            if(hasClass) Container(width:4,height:4,margin:const EdgeInsets.symmetric(horizontal:1),decoration:const BoxDecoration(color:Color(0xFF16A34A),shape:BoxShape.circle)),
+            if(hasExam) Container(width:4,height:4,margin:const EdgeInsets.symmetric(horizontal:1),decoration:const BoxDecoration(color:blue,shape:BoxShape.circle)),
           ])
-        ]))));
+        ]))))));
     }
     final dayClasses=<Map<String,dynamic>>[];
     for(int i=0;i<classes.length;i++) {
@@ -414,14 +414,14 @@ class _PlannerState extends State<Planner> {
       if(d.year==selectedDay.year&&d.month==selectedDay.month&&d.day==selectedDay.day) dayExams.add(e);
     }
     return Column(children:[
-      Padding(padding:const EdgeInsets.fromLTRB(16,8,16,0),child:Row(children:[
+      Padding(padding:const EdgeInsets.fromLTRB(8,2,8,0),child:Row(children:[
         IconButton(onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month-1)),icon:const Icon(Icons.chevron_left)),
-        Expanded(child:Center(child:Text('${['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][calendarMonth.month-1]} ${calendarMonth.year}',style:const TextStyle(fontSize:18,fontWeight:FontWeight.bold)))),
-        IconButton(onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month+1)),icon:const Icon(Icons.chevron_right)),
+        Expanded(child:Center(child:Text('${['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][calendarMonth.month-1]} ${calendarMonth.year}',style:const TextStyle(fontSize:16,fontWeight:FontWeight.bold)))),
+        IconButton(visualDensity:VisualDensity.compact,onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month+1)),icon:const Icon(Icons.chevron_right)),
         TextButton(onPressed:()=>setState((){selectedDay=DateTime.now();calendarMonth=DateTime(selectedDay.year,selectedDay.month);}),child:const Text('Hoy'))
       ])),
       Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:['L','M','X','J','V','S','D'].map((d)=>Expanded(child:Center(child:Text(d,style:const TextStyle(fontWeight:FontWeight.bold,color:Colors.grey))))).toList())),
-      Padding(padding:const EdgeInsets.all(8),child:GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:7,childAspectRatio:1.45,children:cells)),
+      Padding(padding:const EdgeInsets.all(8),child:GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:7,mainAxisSpacing:2,crossAxisSpacing:2,childAspectRatio:2.0,children:cells)),
       const Padding(padding:EdgeInsets.symmetric(horizontal:16),child:Row(children:[
         Icon(Icons.circle,size:8,color:Color(0xFF16A34A)),SizedBox(width:5),Text('Clases',style:TextStyle(fontSize:12)),
         SizedBox(width:14),Icon(Icons.circle,size:8,color:blue),SizedBox(width:5),Text('Exámenes',style:TextStyle(fontSize:12))
