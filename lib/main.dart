@@ -420,7 +420,7 @@ class _PlannerState extends State<Planner> {
         TextButton(onPressed:()=>setState((){selectedDay=DateTime.now();calendarMonth=DateTime(selectedDay.year,selectedDay.month);}),child:const Text('Hoy'))
       ])),
       Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:['L','M','X','J','V','S','D'].map((d)=>Expanded(child:Center(child:Text(d,style:const TextStyle(fontWeight:FontWeight.bold,color:Colors.grey))))).toList())),
-      Padding(padding:const EdgeInsets.all(8),child:GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:7,childAspectRatio:1.15,children:cells)),
+      Padding(padding:const EdgeInsets.all(8),child:GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:7,childAspectRatio:1.45,children:cells)),
       const Padding(padding:EdgeInsets.symmetric(horizontal:16),child:Row(children:[
         Icon(Icons.circle,size:8,color:Color(0xFF16A34A)),SizedBox(width:5),Text('Clases',style:TextStyle(fontSize:12)),
         SizedBox(width:14),Icon(Icons.circle,size:8,color:blue),SizedBox(width:5),Text('Exámenes',style:TextStyle(fontSize:12))
@@ -467,23 +467,23 @@ class _PlannerState extends State<Planner> {
       cells.add(InkWell(borderRadius:BorderRadius.circular(24),onTap:()=>setState((){selectedDay=date;tab=3;}),child:Container(
         margin:const EdgeInsets.all(2),decoration:BoxDecoration(color:selected?blue.withOpacity(.16):null,border:selected?Border.all(color:blue):null,shape:BoxShape.circle),
         child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-          Text('$day',style:TextStyle(fontSize:12,fontWeight:selected?FontWeight.bold:FontWeight.normal)),
+          Text('$day',style:TextStyle(fontSize:10,fontWeight:selected?FontWeight.bold:FontWeight.normal)),
           Row(mainAxisAlignment:MainAxisAlignment.center,children:[
             if(hasClass) Container(width:4,height:4,margin:const EdgeInsets.symmetric(horizontal:1),decoration:const BoxDecoration(color:Color(0xFF16A34A),shape:BoxShape.circle)),
             if(hasExam) Container(width:4,height:4,margin:const EdgeInsets.symmetric(horizontal:1),decoration:const BoxDecoration(color:blue,shape:BoxShape.circle)),
           ])
         ]))));
     }
-    return Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(children:[
+    return Card(child:Padding(padding:const EdgeInsets.all(8),child:Column(children:[
       Row(children:[
-        const Expanded(child:Text('Calendario',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold))),
+        const Expanded(child:Text('Calendario',style:TextStyle(fontSize:15,fontWeight:FontWeight.bold))),
         IconButton(visualDensity:VisualDensity.compact,onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month-1)),icon:const Icon(Icons.chevron_left)),
         Text('${['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][calendarMonth.month-1]} ${calendarMonth.year}',style:const TextStyle(fontWeight:FontWeight.w600)),
         IconButton(visualDensity:VisualDensity.compact,onPressed:()=>setState(()=>calendarMonth=DateTime(calendarMonth.year,calendarMonth.month+1)),icon:const Icon(Icons.chevron_right)),
         TextButton(onPressed:()=>setState(()=>tab=3),child:const Text('Abrir')),
       ]),
       Row(children:['L','M','X','J','V','S','D'].map((d)=>Expanded(child:Center(child:Text(d,style:const TextStyle(fontSize:11,color:Colors.grey,fontWeight:FontWeight.bold))))).toList()),
-      GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:7,childAspectRatio:1.25,children:cells),
+      GridView.count(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),crossAxisCount:7,childAspectRatio:1.65,children:cells),
       const Row(children:[Icon(Icons.circle,size:7,color:Color(0xFF16A34A)),SizedBox(width:4),Text('Clases',style:TextStyle(fontSize:11)),SizedBox(width:12),Icon(Icons.circle,size:7,color:blue),SizedBox(width:4),Text('Exámenes',style:TextStyle(fontSize:11))]),
     ])));
   }
